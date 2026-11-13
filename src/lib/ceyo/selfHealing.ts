@@ -31,4 +31,18 @@ export function compactMessages(messages: Msg[], budget = 60_000, keepRecent = 6
   return messages;
 }
 
-export const PLANNING_RULES = `Long-task method: for goals needing several steps, first call update_plan with short numbered steps, then work through them, calling update_plan again to mark steps done or revise. When a tool fails, diagnose and fix (different code, selector, or source) instead of repeating it. Never claim a step done without tool evidence.`;
+export const PLANNING_RULES = `Operating loop (OpenManus/Grok style): THINK which tool moves the task forward, ACT by calling it, OBSERVE the result, then decide the next step; repeat until the goal is done, then give the final answer. For goals needing several steps, first call update_plan with short numbered steps and mark them [x] as you finish. Tool choice: facts/news → web_search then read_url; any public API → http_request; computing, data, scraping, files, scripts → run_code (pip/npm install inside it); writing or fixing files on the computer → file_editor; websites that need clicking or a signed-in account → browser (look before click_at); Telegram bots → host_telegram_bot. When a tool fails, read the error, fix the cause and retry differently (other code, selector, source or tool); try at least two alternatives before reporting a blocker. Verify the outcome with a tool (re-read, re-run, getMe, look) before saying it is done. Never claim a step done without tool evidence. Final answer: the result itself, short, with links/files, and any part still unfinished.`;
+
+/** The model printed a tool call as text (JSON, XML or harmony syntax) instead of calling it. */
+export function looksLikeFakeToolCall(text: string, toolNames: readonly string[] = []): boolean {
+  if (/```(json)?\s*\{[\s\S]*"(action|tool|tool_name|function|name)"\s*:/.test(text)) return true;
+  if (/<\/?(tool_call|function_call|invoke)\b/i.test(text) || /\bto=functions\.\w+/.test(text)) return true;
+  return toolNames.some((n) => n.length > 3 && new RegExp(`\\{\\s*"(name|tool)"\\s*:\\s*"${n}"`).test(text));
+}
+
+/** First-answer refusal or "do it yourself" instructions where tools could act instead. */
+export function looksLikeRefusal(text: string): boolean {
+  const t = text.toLowerCase();
+  return /\b(i can(?:'|no)t|i(?:'m| am) (?:unable|not able)|i don'?t have (?:access|the ability)|as an ai|you (?:can|will need to|need to|should) (?:run|install|deploy|open|go to))\b/.test(t)
+    || /(لا أستطيع|لا استطيع|لا يمكنني|ما اقدرش|مقدرش|مش هقدر|معنديش صلاحية|ليس لدي (?:القدرة|صلاحية)|لا أملك (?:القدرة|صلاحية)|يمكنك (?:تشغيل|تثبيت|رفع)|عليك (?:تشغيل|تثبيت|رفع))/.test(text);
+}

@@ -20,3 +20,18 @@ describe("self healing", () => {
     expect(msgs[9].content!.length).toBe(10_000);
   });
 });
+import { looksLikeFakeToolCall, looksLikeRefusal } from "./selfHealing";
+describe("doer guards", () => {
+  it("detects tool calls written as text", () => {
+    expect(looksLikeFakeToolCall('```json\n{"action": "navigate", "url": "https://web.telegram.org"}\n```')).toBe(true);
+    expect(looksLikeFakeToolCall('<tool_call>{"x":1}</tool_call>')).toBe(true);
+    expect(looksLikeFakeToolCall('{"name": "telegram_bot", "arguments": {}}', ["telegram_bot"])).toBe(true);
+    expect(looksLikeFakeToolCall("Your bot is live at https://t.me/example_bot")).toBe(false);
+  });
+  it("detects refusals and manual instructions", () => {
+    expect(looksLikeRefusal("I can't access Telegram from here.")).toBe(true);
+    expect(looksLikeRefusal("للأسف لا أستطيع تشغيل البوت")).toBe(true);
+    expect(looksLikeRefusal("You need to deploy this Flask app on Heroku.")).toBe(true);
+    expect(looksLikeRefusal("Done — your bot replies to /start now.")).toBe(false);
+  });
+});

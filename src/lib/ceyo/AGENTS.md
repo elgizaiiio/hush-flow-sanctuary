@@ -3,3 +3,4 @@
 - Shared usage availability checks use the caller's owner-scoped client before provider-token access; costly discrete audio/vision operations also debit atomically. Why: exhausted accounts must not bypass chat limits through media endpoints; token gating is not continuous-session metering.
 - Recompute replyLanguageInstruction from the latest user message at each agent-loop step, after persona and saved context; people-bot uses the invoking member's message. Why: language switches, tool outputs and other participants must not override the current user's language or dialect.
 - Cerebras tool calls use the existing OpenAI-compatible SSE parser with `reasoning_effort: "low"`, matching the working agent-loop request shape.
+- The agent loop nudges a first-answer refusal once and printed tool calls at most twice, and cooling Cerebras keys are reused only when no ready key exists. Why: act-first behavior without unbounded usage or false "not configured" failures.

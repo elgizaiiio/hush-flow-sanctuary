@@ -49,6 +49,7 @@ export async function getCerebrasKeys(): Promise<CerebrasKey[]> {
   const rows: CerebrasKey[] = [];
   if (supabase) {
     const now = Date.now();
+    const cooling: { until: number; key: CerebrasKey }[] = [];
     const { data } = await supabase
       .from("provider_api_keys")
       .select("id,api_key,last_used_at,cooldown_until,failure_count")
@@ -59,7 +60,7 @@ export async function getCerebrasKeys(): Promise<CerebrasKey[]> {
       const api_key = String(r.api_key ?? "").trim();
       if (!api_key) continue;
       const cd = r.cooldown_until as string | null;
-      if (cd && new Date(cd).getTime() > now) continue;
+      if (cd && new Date(cd).getTime() > now) { cooling.push({ until: new Date(cd).getTime(), key: { id: String(r.id), table: "provider_api_keys", api_key, failure_count: Number(r.failure_count ?? 0) } }); continue; }
       rows.push({
         id: String(r.id),
         table: "provider_api_keys",
@@ -67,6 +68,8 @@ export async function getCerebrasKeys(): Promise<CerebrasKey[]> {
         failure_count: Number(r.failure_count ?? 0),
       });
     }
+    // Only rate-limited keys left: still use them (soonest first); the request waits out Retry-After instead of failing the reply.
+    if (!rows.length) rows.push(...cooling.sort((x, y) => x.until - y.until).map((c) => c.key));
   }
   if (!rows.length) {
     const key = envKey();

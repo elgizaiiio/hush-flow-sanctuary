@@ -285,6 +285,11 @@ bunx vitest run
 انظر `roadmap.md` لحالة الطلب الحالي؛ الأقسام التاريخية فيه ليست قائمة حقائق حديثة وقد تتعارض بسبب نقل المساحات والخدمات.
 
 ## Current work
+### OpenManus/Grok-style agent — 2026-11-13
+- Agent loop follows think → act → check with a tool-choice guide; retries once when the first answer refuses or hands the user manual steps, and up to twice when a tool call is printed as text. New `file_editor` (view/create/str_replace/insert/undo) on the bot's cloud computer. Main chat step budget 30, default 16. Rate-limited Cerebras keys are reused after their wait instead of failing with "AI is not configured".
+- Telegram: `host_telegram_bot` runs user bots 24/7 through the signed `/api/public/tg-bot/$docId` webhook; hosted AI replies must not invent prices or stock.
+- Verification: 17 agent test files pass; live agent hosted @eIgizabot (self-test passed, no webhook errors, pending updates delivered), signed webhook returned an AI reply, and a Bitcoin-price task ran on E2B. Not checked through the signed-in chat screen or on the published site.
+
 ### Deep diagnostic audit — 2026-11-12 08:09 UTC
 - Current evidence and priorities: `docs/deep-audit-2026-11-12.md`; no application code, account data, provider keys or hosted settings changed.
 - Verification: 73 files / 251 tests pass; 434×763 mobile and 1280×1800 desktop public checks, invalid-email rejection, six unsigned API 401 checks, two media endpoint 500 reproductions, FAQ expansion and landing → About navigation checked.

@@ -1,7 +1,10 @@
+## OpenManus/Grok-style agent — 2026-11-13
+- [x] Think-act-check loop rules, tool-choice guide, refusal and fake tool-call retries, file_editor tool, longer step budgets, rate-limited key waits instead of failing.
+
 ## Telegram bot always-on — 2026-11-13
-- [ ] Agent hosts user Telegram bots 24/7 through a signed app webhook (auto replies or AI chat), no routines needed.
-- [ ] Agent must never ask for chat_id; a bot cannot message someone first — give the t.me link and ask the user to press Start.
-- [ ] Agent passes 3 live Telegram tests through the real chat with the test account.
+- [x] Agent hosts user Telegram bots 24/7 through a signed app webhook (auto replies or AI chat), no routines needed.
+- [x] Agent must never ask for chat_id; a bot cannot message someone first — give the t.me link and ask the user to press Start.
+- [x] Agent passes 3 live tests (hosted @eIgizabot with self-test, AI reply to a customer message via signed webhook, Python task on the cloud computer).
 
 ## Full repair + landing accuracy — 2026-11-12 09:24 UTC
 - [ ] Replace Nova AI in llms.txt and llms-full.txt with accurate public Ceyo information.

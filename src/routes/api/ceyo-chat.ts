@@ -65,7 +65,7 @@ export const Route = createFileRoute("/api/ceyo-chat")({ server: { handlers: {
               return `Background job started (${id}); the result will be saved to this chat.`;
             }
           } catch { console.error("Background start unavailable; continuing inline"); }
-          return runAgentLoop(system, [{ role: "user", content: goal }], emit, request.signal, poll, { usageOwner: userId, botId: conv.bot_id, chatModel: true, maxSteps: 20, extras: tools.filter((t) => t.name !== "start_long_task") });
+          return runAgentLoop(system, [{ role: "user", content: goal }], emit, request.signal, poll, { usageOwner: userId, botId: conv.bot_id, chatModel: true, maxSteps: 30, extras: tools.filter((t) => t.name !== "start_long_task") });
         } });
         let text: string;
         if (conv.group_id) {
