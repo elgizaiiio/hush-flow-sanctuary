@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { HOOK_PATH, HOSTED_BOT_MIME, hostedBotConfig, hostedBotSecret, publicHookOrigin } from "./telegramHosting";
 import { publicBrowserUrl } from "@/lib/computer/browserRules";
 import type { AgentTool } from "./toolSchemas";
 import { tool } from "./toolSchemas";
@@ -12,7 +14,7 @@ async function getJson(url: string) {
   return r.json();
 }
 
-export function extraTools(): AgentTool[] {
+export function extraTools(ctx?: { db: SupabaseClient; userId: string; origin?: string }): AgentTool[] {
   const list: AgentTool[] = [];
   const add = (name: string, description: string, props: object, required: string[], run: AgentTool["run"]) => list.push({ name, def: tool(name, description, props, required), run });
 
@@ -30,7 +32,7 @@ export function extraTools(): AgentTool[] {
     return JSON.stringify({ status: r.status, ok: r.ok, content_type: r.headers.get("content-type"), body: clip(text) });
   });
 
-  add("telegram_bot", "Operate a Telegram bot directly with its BotFather token (Bot API). method examples: getMe, sendMessage, sendPhoto, setMyCommands, setMyDescription, getUpdates, deleteWebhook, setWebhook, getChat. Special method 'reply_start' answers every pending /start (and optionally all messages) with reply_text, then marks them read; pair it with create_routine every 5 minutes to keep the bot answering.", { token: str, method: str, params: { type: "object" }, reply_text: str, reply_all: { type: "boolean" } }, ["token", "method"], async (args) => {
+  add("telegram_bot", "Operate a Telegram bot directly with its BotFather token (Bot API). method examples: getMe, sendMessage, sendPhoto, setMyCommands, setMyDescription, getUpdates, deleteWebhook, setWebhook, getChat. Special method 'reply_start' answers pending /start messages once. To keep a bot answering 24/7 use host_telegram_bot instead. A bot can never message a person first: never ask the user for chat_id — give them https://t.me/<username> and ask them to press Start.", { token: str, method: str, params: { type: "object" }, reply_text: str, reply_all: { type: "boolean" } }, ["token", "method"], async (args) => {
     const input = z.object({ token: z.string().regex(/^\d+:[A-Za-z0-9_-]{20,}$/, "Invalid bot token"), method: z.string().regex(/^[A-Za-z_]{2,40}$/), params: z.record(z.unknown()).optional(), reply_text: z.string().max(4000).optional(), reply_all: z.boolean().optional() }).parse(args);
     const call = async (method: string, params: unknown = {}) => {
       const r = await fetch(`https://api.telegram.org/bot${input.token}/${method}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(params) });
@@ -40,6 +42,8 @@ export function extraTools(): AgentTool[] {
     };
     if (input.method === "reply_start") {
       if (!input.reply_text) throw new Error("reply_text required");
+      const hook = (await call("getWebhookInfo")) as { url?: string };
+      if (hook.url?.includes(HOOK_PATH)) return JSON.stringify({ hosted: true, note: "This bot is already hosted 24/7 and answers by itself; nothing to poll." });
       await call("deleteWebhook", { drop_pending_updates: false });
       const updates = (await call("getUpdates", { timeout: 0, limit: 100 })) as any[];
       let replied = 0, last = 0;
@@ -54,6 +58,57 @@ export function extraTools(): AgentTool[] {
     }
     return clip(JSON.stringify(await call(input.method, input.params || {})));
   });
+
+  if (ctx) {
+    const tg = async (token: string, method: string, params: unknown = {}) => {
+      const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(params) });
+      const j = (await r.json().catch(() => ({ ok: false, description: `HTTP ${r.status}` }))) as { ok: boolean; result?: any; description?: string };
+      if (!j.ok) throw new Error(`Telegram: ${j.description || "request failed"}`);
+      return j.result;
+    };
+    const tokenSchema = z.string().regex(/^\d+:[A-Za-z0-9_-]{20,}$/, "Invalid bot token");
+    add("host_telegram_bot", "Run the user's Telegram bot 24/7 on Ceyo's server (no routine, no user server). mode 'ai_chat' answers every message with AI using persona; 'auto_reply' sends fixed replies. Always set start_text (the /start welcome). Re-run to change texts. It self-tests and returns the bot link: give the user https://t.me/<username> and tell them to press Start — never ask for chat_id.", { token: str, mode: { type: "string", enum: ["ai_chat", "auto_reply"] }, start_text: str, persona: { type: "string", description: "Who the bot is and how it answers (ai_chat)" }, default_reply: { type: "string", description: "Reply for other messages (auto_reply) or when AI is unavailable" }, commands: { type: "array", items: { type: "object", properties: { command: str, description: str, reply: str }, required: ["command", "description"] } } }, ["token", "start_text"], async (args) => {
+      const input = z.object({ token: tokenSchema, mode: z.enum(["ai_chat", "auto_reply"]).default("ai_chat"), start_text: z.string().min(1).max(4000), persona: z.string().max(4000).optional(), default_reply: z.string().max(4000).optional(), commands: z.array(z.object({ command: z.string().transform((c) => c.replace(/^\//, "").toLowerCase()), description: z.string().min(1).max(256), reply: z.string().max(4000).optional() })).max(30).optional() }).parse(args);
+      const secret = process.env.LOVABLE_CRON_SECRET;
+      if (!secret) throw new Error("Bot hosting is not configured on this server");
+      const me = (await tg(input.token, "getMe")) as { id: number; username: string; first_name?: string };
+      const cfg = hostedBotConfig.parse({ v: 1, bot_id: me.id, username: me.username, mode: input.mode, start_text: input.start_text, persona: input.persona, default_reply: input.default_reply, commands: (input.commands || []).filter((c) => c.command !== "start") });
+      const name = `telegram-bot:${me.id}`;
+      const { data: existing, error: findError } = await ctx.db.from("agent_documents").select("id").eq("user_id", ctx.userId).eq("name", name).eq("mime", HOSTED_BOT_MIME).maybeSingle();
+      if (findError) throw new Error(findError.message);
+      let docId = existing?.id as string | undefined;
+      if (docId) {
+        const { error } = await ctx.db.from("agent_documents").update({ content: JSON.stringify(cfg), updated_at: new Date().toISOString() }).eq("id", docId).eq("user_id", ctx.userId);
+        if (error) throw new Error(error.message);
+      } else {
+        const { data, error } = await ctx.db.from("agent_documents").insert({ user_id: ctx.userId, name, mime: HOSTED_BOT_MIME, content: JSON.stringify(cfg) }).select("id").single();
+        if (error) throw new Error(error.message);
+        docId = data.id as string;
+      }
+      const origin = publicHookOrigin(ctx.origin || "http://localhost", process.env.APP_URL || "https://project--31d71057-3c67-417c-ae8b-2c7341705a52-dev.lovable.app");
+      const url = `${origin}${HOOK_PATH}${docId}`;
+      const secretToken = await hostedBotSecret(secret, docId!);
+      await tg(input.token, "setWebhook", { url, secret_token: secretToken, allowed_updates: ["message"], drop_pending_updates: false });
+      await tg(input.token, "setMyCommands", { commands: [{ command: "start", description: "Start" }, ...cfg.commands.map(({ command, description }) => ({ command, description }))] });
+      // Self-test: send our own webhook a fake /start and check that it answers.
+      let selfTest = "not run";
+      try {
+        const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-Telegram-Bot-Api-Secret-Token": secretToken }, body: JSON.stringify({ update_id: 0, message: { chat: { id: 1, type: "private" }, text: "/start" } }) });
+        const j = (await r.json().catch(() => null)) as { method?: string; text?: string } | null;
+        selfTest = r.ok && j?.method === "sendMessage" && j.text === cfg.start_text ? "passed" : `failed (HTTP ${r.status})`;
+      } catch (error) { selfTest = `failed (${error instanceof Error ? error.message : "unreachable"})`; }
+      const info = (await tg(input.token, "getWebhookInfo")) as { url?: string; pending_update_count?: number; last_error_message?: string };
+      return JSON.stringify({ hosted: info.url === url, self_test: selfTest, bot: `@${me.username}`, link: `https://t.me/${me.username}`, mode: cfg.mode, pending_messages: info.pending_update_count ?? 0, last_error: info.last_error_message || null, note: "Runs 24/7 on Ceyo's server. Tell the user to open the link and press Start; the bot cannot message them first." });
+    });
+    add("stop_telegram_bot", "Stop hosting a Telegram bot that host_telegram_bot started.", { token: str }, ["token"], async (args) => {
+      const { token } = z.object({ token: tokenSchema }).parse(args);
+      const me = (await tg(token, "getMe")) as { id: number; username: string };
+      await tg(token, "deleteWebhook", { drop_pending_updates: false });
+      const { error } = await ctx.db.from("agent_documents").delete().eq("user_id", ctx.userId).eq("name", `telegram-bot:${me.id}`).eq("mime", HOSTED_BOT_MIME);
+      if (error) throw new Error(error.message);
+      return JSON.stringify({ stopped: true, bot: `@${me.username}` });
+    });
+  }
 
   add("weather", "Current weather and 3-day forecast for a city (keyless).", { city: str }, ["city"], async (args) => {
     const { city } = z.object({ city: z.string().min(1).max(100) }).parse(args);

@@ -1,3 +1,8 @@
+## Telegram bot always-on — 2026-11-13
+- [ ] Agent hosts user Telegram bots 24/7 through a signed app webhook (auto replies or AI chat), no routines needed.
+- [ ] Agent must never ask for chat_id; a bot cannot message someone first — give the t.me link and ask the user to press Start.
+- [ ] Agent passes 3 live Telegram tests through the real chat with the test account.
+
 ## Full repair + landing accuracy — 2026-11-12 09:24 UTC
 - [ ] Replace Nova AI in llms.txt and llms-full.txt with accurate public Ceyo information.
 - [ ] Add landing prices from the shared paid-plan catalogue; review mobile/desktop.
