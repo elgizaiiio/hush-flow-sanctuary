@@ -39,7 +39,7 @@ const tools = [
     function: {
       name: "run_code",
       description:
-        "Run code on your own isolated cloud computer (Linux, Python 3 with pandas/numpy/pillow/matplotlib, Node.js, bash). Files and variables persist for the rest of this task. Use it for calculations, data work, parsing, files and checking facts — print the results you need.",
+        "Run code on your own isolated cloud computer (Linux, Python 3 with pandas/numpy/pillow/matplotlib/requests/bs4, Node.js, bash; install anything else with pip/npm inside the code). Files and variables persist for the rest of this task. Use it for calculations, data work, parsing, files and checking facts — print the results you need.",
       parameters: {
         type: "object",
         properties: {
@@ -173,6 +173,7 @@ export async function runAgentLoop(
   if (!opts.chatModel && !keys.length) throw new Error("AI is not configured");
   const messages: Msg[] = [{ role: "system", content: system }, ...history];
   let answer = "";
+  let fakeToolNudged = false;
   const turn = crypto.randomUUID().slice(0, 8);
   const usageRun = crypto.randomUUID();
 
@@ -228,6 +229,14 @@ export async function runAgentLoop(
     const real = calls.filter(Boolean);
     const steer = await poll();
     if (!real.length) {
+      if (!steer.length && !fakeToolNudged && /```(json)?\s*\{[\s\S]*"(action|tool|tool_name|function)"\s*:/.test(text)) {
+        // The model wrote a tool call as plain text; make it call the real tool.
+        fakeToolNudged = true;
+        answer = answer.slice(0, answer.length - text.length).trimEnd();
+        messages.push({ role: "assistant", content: text });
+        messages.push({ role: "user", content: "You wrote a tool call as text, so nothing happened. Call the actual tool now (function call), then continue the task." });
+        continue;
+      }
       if (!steer.length) {
         if (!text.trim()) throw new Error("The agent did not complete an answer. No success was recorded.");
         return answer;
