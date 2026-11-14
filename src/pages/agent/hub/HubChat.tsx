@@ -358,7 +358,7 @@ export function HubChat({
     if (demo || !sessionId) { setBgJob(false); return; }
     let alive = true;
     const check = async () => {
-      const { legacyDb } = await import("@/integrations/supabase/legacyClient").then((m) => ({ legacyDb: (m as any).legacySupabase || (m as any).supabase || (m as any).default }));
+      const { supabase: legacyDb } = await import("@/integrations/supabase/legacyClient");
       const { data } = await legacyDb.from("agent_jobs").select("id").eq("conversation_id", sessionId).in("status", ["queued", "running"]).limit(1);
       if (alive) setBgJob(Boolean(data?.length));
     };
