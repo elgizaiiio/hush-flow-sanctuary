@@ -282,3 +282,10 @@
 .ag-file:hover { background: var(--ag-soft); }
 .ag-file__icon { position: relative; display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--ag-soft); color: var(--ag-ink); }
 .ag-file__ext { position: absolute; bottom: -4px; inset-inline-end: -6px; font-size: 8.5px; font-weight: 700; padding: 1px 4px; border-radius: 6px; background: var(--ag-ink); color: var(--ag-bg, hsl(var(--background))); }
+.ag-plan-bar{height:3px;margin:0 14px 4px;border-radius:99px;background:var(--ag-soft);overflow:hidden}
+.ag-plan-bar span{display:block;height:100%;border-radius:inherit;background:var(--ag-c1);transition:width .5s ease}
+.ag-plan-tick{flex:none;margin-top:2px;width:16px;height:16px;border-radius:99px;display:grid;place-items:center;background:var(--ag-c1);color:hsl(var(--primary-foreground));animation:ag-pop .3s ease}
+.ag-plan-tick--lg{width:18px;height:18px;margin-top:0}
+.ag-plan-todo{flex:none;margin-top:2px;width:16px;height:16px;border-radius:99px;border:1.5px solid var(--ag-muted);opacity:.5}
+.ag-plan-live{flex:none;margin-top:2px;width:16px;height:16px;border-radius:99px;border:2px solid var(--ag-soft);border-top-color:var(--ag-c1);animation:spin .9s linear infinite}
+@keyframes ag-pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}

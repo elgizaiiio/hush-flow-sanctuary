@@ -13,4 +13,7 @@ export async function sendCallFollowup(call: ActiveCall, turns: CallTurn[], lang
   });
   window.dispatchEvent(new Event("ceyo-action-completed"));
   if (!response.ok) throw new Error("Could not send the call follow-up.");
+  // Work the user asked for during the call starts right away in the chat.
+  const result = await response.json().catch(() => ({})) as { conversationId?: string; task?: string };
+  if (result.task && result.conversationId) window.dispatchEvent(new CustomEvent("ceyo-call-task", { detail: { conversationId: result.conversationId, task: result.task } }));
 }

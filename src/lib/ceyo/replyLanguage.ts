@@ -2,7 +2,8 @@ type LanguageMessage = { role: string; content?: string | null };
 
 /** Recomputed per turn: old assistant/tool English must never set the user's language. */
 export function replyLanguageInstruction(messages: LanguageMessage[]): string {
-  const latest = [...messages].reverse().find(m => m.role === "user" && m.content?.trim())?.content?.trim();
+  const textOf = (c: unknown): string => typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => (p && typeof p === "object" && "text" in p ? String((p as { text: unknown }).text) : "")).join(" ") : "";
+  const latest = [...messages].reverse().map(m => m.role === "user" ? textOf(m.content).trim() : "").find(Boolean);
   if (!latest) return "Reply in the user's own language and dialect. Never use the app display language as a default.";
   const prose = latest.replace(/```[\s\S]*?```/g, "").replace(/https?:\/\/\S+/g, "").replace(/@[\w.-]+/g, "");
   const arabic = (prose.match(/\p{Script=Arabic}/gu) || []).length;
