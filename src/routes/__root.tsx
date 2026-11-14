@@ -336,12 +336,16 @@ const ADROLL_SCRIPT = `
 })();
 `;
 
+/** Reloads once when the app's startup file was replaced by an update before it finished loading. */
+const ENTRY_RECOVERY_SCRIPT = `(function(){var K="ceyo-entry-reload";function r(e){var m=String((e&&(e.reason&&e.reason.message||e.message))||"");if(!/Failed to fetch dynamically imported module|Importing a module script failed/i.test(m))return;try{var t=+sessionStorage.getItem(K)||0;if(Date.now()-t<15000)return;sessionStorage.setItem(K,String(Date.now()))}catch(_){}location.reload()}addEventListener("error",r);addEventListener("unhandledrejection",r)})();`;
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" dir="ltr" className="dark" translate="no" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: GTM_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: CLARITY_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: ENTRY_RECOVERY_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <style dangerouslySetInnerHTML={{ __html: BOOT_STYLE }} />
         <style dangerouslySetInnerHTML={{ __html: GARAMOND_STYLE }} />
