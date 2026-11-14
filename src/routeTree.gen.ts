@@ -60,6 +60,7 @@ import { Route as ApiPublicTelegramKeysRouteImport } from './routes/api/public/t
 import { Route as ApiPublicTelnyxVoiceRouteImport } from './routes/api/public/telnyx-voice'
 import { Route as ApiPublicAgentToolsTokenRouteImport } from './routes/api/public/agent-tools.$token'
 import { Route as ApiPublicMediaStatusRunIdRouteImport } from './routes/api/public/media-status.$runId'
+import { Route as ApiPublicSiteSiteIdRouteImport } from './routes/api/public/site.$siteId'
 import { Route as ApiPublicTgBotDocIdRouteImport } from './routes/api/public/tg-bot.$docId'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as ApiPublicCeyoHookRoutineIdSigRouteImport } from './routes/api/public/ceyo-hook.$routineId.$sig'
@@ -322,6 +323,11 @@ const ApiPublicMediaStatusRunIdRoute =
     path: '/api/public/media-status/$runId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSiteSiteIdRoute = ApiPublicSiteSiteIdRouteImport.update({
+  id: '/api/public/site/$siteId',
+  path: '/api/public/site/$siteId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTgBotDocIdRoute = ApiPublicTgBotDocIdRouteImport.update({
   id: '/api/public/tg-bot/$docId',
   path: '/api/public/tg-bot/$docId',
@@ -398,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
+  '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
   '/api/public/tg-bot/$docId': typeof ApiPublicTgBotDocIdRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/api/public/ceyo-hook/$routineId/$sig': typeof ApiPublicCeyoHookRoutineIdSigRoute
@@ -455,6 +462,7 @@ export interface FileRoutesByTo {
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
+  '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
   '/api/public/tg-bot/$docId': typeof ApiPublicTgBotDocIdRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/api/public/ceyo-hook/$routineId/$sig': typeof ApiPublicCeyoHookRoutineIdSigRoute
@@ -513,6 +521,7 @@ export interface FileRoutesById {
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
+  '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
   '/api/public/tg-bot/$docId': typeof ApiPublicTgBotDocIdRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/api/public/ceyo-hook/$routineId/$sig': typeof ApiPublicCeyoHookRoutineIdSigRoute
@@ -572,6 +581,7 @@ export interface FileRouteTypes {
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
     | '/api/public/media-status/$runId'
+    | '/api/public/site/$siteId'
     | '/api/public/tg-bot/$docId'
     | '/lovable/email/transactional/preview'
     | '/api/public/ceyo-hook/$routineId/$sig'
@@ -629,6 +639,7 @@ export interface FileRouteTypes {
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
     | '/api/public/media-status/$runId'
+    | '/api/public/site/$siteId'
     | '/api/public/tg-bot/$docId'
     | '/lovable/email/transactional/preview'
     | '/api/public/ceyo-hook/$routineId/$sig'
@@ -686,6 +697,7 @@ export interface FileRouteTypes {
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
     | '/api/public/media-status/$runId'
+    | '/api/public/site/$siteId'
     | '/api/public/tg-bot/$docId'
     | '/lovable/email/transactional/preview'
     | '/api/public/ceyo-hook/$routineId/$sig'
@@ -744,6 +756,7 @@ export interface RootRouteChildren {
   ApiPublicTelnyxVoiceRoute: typeof ApiPublicTelnyxVoiceRoute
   ApiPublicAgentToolsTokenRoute: typeof ApiPublicAgentToolsTokenRoute
   ApiPublicMediaStatusRunIdRoute: typeof ApiPublicMediaStatusRunIdRoute
+  ApiPublicSiteSiteIdRoute: typeof ApiPublicSiteSiteIdRoute
   ApiPublicTgBotDocIdRoute: typeof ApiPublicTgBotDocIdRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
   ApiPublicCeyoHookRoutineIdSigRoute: typeof ApiPublicCeyoHookRoutineIdSigRoute
@@ -1109,6 +1122,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMediaStatusRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/site/$siteId': {
+      id: '/api/public/site/$siteId'
+      path: '/api/public/site/$siteId'
+      fullPath: '/api/public/site/$siteId'
+      preLoaderRoute: typeof ApiPublicSiteSiteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/tg-bot/$docId': {
       id: '/api/public/tg-bot/$docId'
       path: '/api/public/tg-bot/$docId'
@@ -1192,6 +1212,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTelnyxVoiceRoute: ApiPublicTelnyxVoiceRoute,
   ApiPublicAgentToolsTokenRoute: ApiPublicAgentToolsTokenRoute,
   ApiPublicMediaStatusRunIdRoute: ApiPublicMediaStatusRunIdRoute,
+  ApiPublicSiteSiteIdRoute: ApiPublicSiteSiteIdRoute,
   ApiPublicTgBotDocIdRoute: ApiPublicTgBotDocIdRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
   ApiPublicCeyoHookRoutineIdSigRoute: ApiPublicCeyoHookRoutineIdSigRoute,

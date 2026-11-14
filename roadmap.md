@@ -500,5 +500,6 @@
 - [ ] Sign-in emails restyled to match the landing page
 
 ## Agent quality — 2026-11-13
-- [ ] Read the user's Telegram messages: hosted bots save everything they receive (personal chats via Telegram Business, admin groups/channels) and the agent reads them with read_telegram_messages
-- [ ] Fix the agent's general behavior on any task (not just Telegram): no technical/manual answers for everyday users, never ask for IDs it can find itself, finish big multi-step tasks
+- [x] Read the user's Telegram messages: hosted bots save everything they receive (personal chats via Telegram Business, admin groups/channels) and the agent reads them with read_telegram_messages (simulated business message read back by the agent; real Telegram Business link not yet done by the owner)
+- [x] Fix the agent's general behavior on any task (not just Telegram): plain-language prompt rewrite, deeper thinking, retry when it asks for technical IDs, switch source on blocked sites, always deliver before the step limit, ignore null tool args, publish_website for live pages (live tests: Excel price comparison delivered, store page published)
+- [ ] Big tasks are slow: the current Cerebras key is free tier (5 requests/min, 30k tokens/min, 150/hour) — a 20-step task takes ~6 min. Blocked on the owner upgrading the Cerebras plan.

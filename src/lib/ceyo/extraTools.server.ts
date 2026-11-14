@@ -116,6 +116,25 @@ export function extraTools(ctx?: { db: SupabaseClient; userId: string; origin?: 
       const linked = (data || []).some((m) => m.kind === "business_connection" || m.kind === "business");
       return JSON.stringify({ messages: (data || []).reverse().map((m) => ({ bot: names.get(m.doc_id as string), where: m.kind, chat: m.chat_title, from: m.outgoing ? "the user (you)" : m.from_name, text: m.text, at: m.created_at })), note: data?.length ? undefined : linked ? "No new messages yet." : "Nothing received yet. If the user wants their personal chats read, tell them in simple words: open Telegram → Settings → Telegram Business → Chatbots → type the bot's username → allow it (needs Telegram Premium). Groups/channels: add the bot as admin. Only new messages from then on can be read." });
     });
+    add("publish_website", "Publish a web page (store, landing page, menu, portfolio, form, mini app) and get a live public link to give the user — never tell them to upload or host files themselves. html = one complete self-contained HTML document (inline CSS/JS; max ~95k characters), modern and mobile-first. Never invent image URLs: use image URLs a tool returned, or keyword photos like https://loremflickr.com/800/800/tshirt,white?lock=1 (change keywords and lock number per image). Mark sample prices/texts you made up and tell the user to send the real ones. For orders/contact use WhatsApp (https://wa.me/<number>), mailto: or a Telegram bot link. Pass site_id to update a page you published before.", { title: str, html: str, site_id: str }, ["title", "html"], async (args) => {
+      const input = z.object({ title: z.string().min(1).max(120), html: z.string().min(20).max(95_000), site_id: z.string().uuid().optional() }).parse(args);
+      const SITE = "text/html; ceyo-site";
+      const name = `site:${input.title}`.slice(0, 200);
+      let id = input.site_id;
+      if (id) {
+        const { data, error } = await ctx.db.from("agent_documents").update({ content: input.html, name }).eq("id", id).eq("user_id", ctx.userId).eq("mime", SITE).select("id").maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) throw new Error("No published page with that site_id");
+      } else {
+        const { data, error } = await ctx.db.from("agent_documents").insert({ user_id: ctx.userId, name, mime: SITE, content: input.html }).select("id").single();
+        if (error) throw new Error(error.message);
+        id = data.id as string;
+      }
+      const origin = publicHookOrigin(ctx.origin || "http://localhost", process.env.APP_URL || "https://project--31d71057-3c67-417c-ae8b-2c7341705a52-dev.lovable.app");
+      const url = `${origin}/api/public/site/${id}`;
+      const check = await fetch(url).then((r) => r.status).catch(() => 0);
+      return JSON.stringify({ published: check === 200, url, site_id: id, note: check === 200 ? "Live now. Give the user this link." : `Saved, but the link answered HTTP ${check}; it may need a moment.` });
+    });
     add("stop_telegram_bot", "Stop hosting a Telegram bot that host_telegram_bot started.", { token: str }, ["token"], async (args) => {
       const { token } = z.object({ token: tokenSchema }).parse(args);
       const me = (await tg(token, "getMe")) as { id: number; username: string };

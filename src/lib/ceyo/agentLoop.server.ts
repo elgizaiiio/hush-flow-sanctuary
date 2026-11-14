@@ -289,6 +289,8 @@ export async function runAgentLoop(
       }
       let args: any = {};
       try { args = JSON.parse(c.args || "{}"); } catch { /* keep empty */ }
+      // The model often sends null for optional fields; treat them as omitted so tool validation doesn't fail.
+      if (args && typeof args === "object" && !Array.isArray(args)) args = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== null));
       toolsUsed++;
       emit({ id: `${c.id}-call`, type: "agent.tool_use", part: { type: "tool_call", call_id: c.id, tool_name: c.name, args } });
       let result: string;

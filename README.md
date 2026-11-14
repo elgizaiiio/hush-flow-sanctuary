@@ -285,6 +285,13 @@ bunx vitest run
 انظر `roadmap.md` لحالة الطلب الحالي؛ الأقسام التاريخية فيه ليست قائمة حقائق حديثة وقد تتعارض بسبب نقل المساحات والخدمات.
 
 ## Current work
+### Everyday-user agent behavior — 2026-11-14
+- Prompt rewritten into clear sections (how to talk / how to work / tools / rules): plain words, no tool names or jargon, never ask for IDs the agent can find, defaults over questions, finish every plan step. Agent turns use `reasoning_effort: "medium"`.
+- Loop: step text is held until the step ends; a reply that asks the user for technical IDs/code is retried once; blocked anti-bot pages get a switch-source note; near the step limit the agent is told to wrap up and the last step is tool-free, so big tasks deliver instead of failing; null optional tool args are dropped; browser errors now carry the real cause; rate-limit waits up to 4 minutes per request.
+- New tools: `read_telegram_messages` (hosted bots save every update — personal chats via Telegram Business, admin groups/channels — to `telegram_inbox`) and `publish_website` (live page at `/api/public/site/$siteId`, CSP sandboxed).
+- Verification: 55 test files / 205 tests pass; live agent runs on the test account: your exact Telegram request → hosted the bot and gave plain Telegram Business steps; a simulated business message was saved and read back; iPhone price comparison → real Excel file delivered (366 s); t-shirt store → live page published. Not checked: a real Telegram Business link from a phone, the signed-in chat screen.
+- Limit: the Cerebras key is free tier (5 requests/min, 30k tokens/min, 150/hour), so long tasks take minutes.
+
 ### OpenManus/Grok-style agent — 2026-11-13
 - Agent loop follows think → act → check with a tool-choice guide; retries once when the first answer refuses or hands the user manual steps, and up to twice when a tool call is printed as text. New `file_editor` (view/create/str_replace/insert/undo) on the bot's cloud computer. Main chat step budget 30, default 16. Rate-limited Cerebras keys are reused after their wait instead of failing with "AI is not configured".
 - Telegram: `host_telegram_bot` runs user bots 24/7 through the signed `/api/public/tg-bot/$docId` webhook; hosted AI replies must not invent prices or stock.
