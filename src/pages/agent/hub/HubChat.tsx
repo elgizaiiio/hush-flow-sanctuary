@@ -344,6 +344,15 @@ export function HubChat({
     }
   };
 
+  useEffect(() => {
+    const onTask = (e: Event) => {
+      const d = (e as CustomEvent<{ conversationId: string; task: string }>).detail;
+      if (d?.task && d.conversationId === sessionId) void s.send(d.task);
+    };
+    window.addEventListener("ceyo-call-task", onTask);
+    return () => window.removeEventListener("ceyo-call-task", onTask);
+  }, [sessionId, s]);
+
   const startConversation = async (text: string, origin: RecordingOrigin = {}, images: string[] = []) => {
     if (demo) return;
     const messageId = crypto.randomUUID();
