@@ -1,3 +1,17 @@
+## Chat polish batch — 2026-11-14
+- [x] Thinking line follows the bot's real step, in the user's language.
+- [x] Long user messages collapse to one line with "Show more".
+- [x] Connect cards open sign-in directly, detect the new account and tell the bot to continue; sign-in window closes itself.
+- [x] Approval card redesigned with app icon, plain text, Allow / Always allow / Decline; continues from the same step after approval.
+- [x] Background-task banner when returning to a chat; big jobs pushed to background tasks.
+- [x] Calls follow the spoken language; work asked during a call starts in the chat.
+- [x] Wallet balance card (total, 24h gain/loss) and agent wallet rules.
+- [x] + menu closes on outside tap; photos show inside the input and the bot can see them.
+- [x] Bot emoji reactions and replies to user reactions.
+- [x] Vault logins ask for email/username and password; Agent Computer page shows Ready.
+- [x] Plan card ticks finished steps; cleaner loading.
+- [ ] Live check of Instagram sign-in window on a phone (needs the owner's device).
+
 ## CoArena strongest model — 2026-11-14
 - [x] Agent and chat use CoArena GPT-6.1 Terra first, Qwen on Cerebras as automatic backup; live news and Excel tasks passed.
 
