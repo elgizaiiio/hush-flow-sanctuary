@@ -10,7 +10,7 @@ const functionCall = z.object({
 });
 const message = z.discriminatedUnion("role", [
   z.object({ role: z.literal("system"), content: z.string() }),
-  z.object({ role: z.literal("user"), content: z.string() }),
+  z.object({ role: z.literal("user"), content: z.union([z.string(), z.array(z.record(z.string(), z.unknown())).max(8)]) }),
   z.object({
     role: z.literal("assistant"),
     content: z.string().nullable().optional(),
