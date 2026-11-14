@@ -4,7 +4,7 @@ export function isPendingCall(status: string) { return pendingCallStatuses.inclu
 /** A one-off request is authorized by the current user message, never conversation history. */
 export function requestsCall(text: string) {
   if (/(?:don't|do not|stop|cancel|no more)\s+(?:call|ring)|(?:مت|ما\s*ت|مات)(?:رن|تصل)|(?:وقف|بطل|الغ[يى])[^.!؟\n]{0,25}(?:رن|مكالم|اتصال)/i.test(text)) return false;
-  return /\b(?:call|ring|phone)\s+me\b|(?:رن|اتصل|كلمني|تكلمني)\s*(?:علي[اّ]|عليّ|عليا|بيا|بي|لي)|(?:فكرني|ذكرني|remind\s+me)[\s\S]*(?:مكالم|اتصال|رن|\bcall\b)/i.test(text);
+  return /\b(?:call|ring|phone)\s+me\b|\bvideo\s*call\b|فيديو\s*كول|(?:رن|اتصل|اعمل|كلمني)\s*(?:فيديو|مكالم|كول|صوت)|(?:مكالمة|مكالمه)\s*(?:فيديو|صوت)|(?:رن|اتصل|كلمني|تكلمني)\s*(?:علي[اّ]|عليّ|عليا|بيا|بي|لي)|(?:فكرني|ذكرني|remind\s+me)[\s\S]*(?:مكالم|اتصال|رن|\bcall\b)/i.test(text);
 }
 
 export async function callRequestId(conversationId: string, messageId: string) {

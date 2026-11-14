@@ -24,4 +24,8 @@ describe("one-off bot calls", () => {
     calls.ring({ callId: "other", kind: "voice", agent, reason: "Other" });
     expect(calls.get().incoming).toBeNull();
   });
+  it("treats a short video-call request as a call request", () => {
+    expect(requestsCall("رن فيديو كول")).toBe(true);
+    expect(requestsCall("video call me")).toBe(true);
+  });
 });

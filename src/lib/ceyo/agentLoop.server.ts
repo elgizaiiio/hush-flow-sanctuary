@@ -85,6 +85,12 @@ async function runTool(name: string, args: any, computer: Computer): Promise<str
     return out.output;
   }
   if (name === "web_search") {
+    const q = String(args.query ?? "").trim();
+    try {
+      const { webSearch } = await import("@/lib/search/webSearchCore");
+      const r = await webSearch(q, 8);
+      if (r.results.length) return r.results.map((x) => `- ${x.title}\n  ${x.url}\n  ${x.snippet}`).join("\n");
+    } catch { /* fall back to DuckDuckGo */ }
     const html = await bbFetch("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(String(args.query ?? "")));
     const out: string[] = [];
     const re = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
@@ -95,7 +101,7 @@ async function runTool(name: string, args: any, computer: Computer): Promise<str
       if (u) link = decodeURIComponent(u[1]);
       out.push(`- ${strip(m[2])}\n  ${link}\n  ${strip(m[3])}`);
     }
-    return out.join("\n") || "No results.";
+    return out.join("\n") || "No results for this wording. Retry now with a shorter query, English keywords, or read_url on a likely site.";
   }
   if (name === "read_url") {
     const url = String(args.url ?? "");

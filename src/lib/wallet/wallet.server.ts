@@ -88,7 +88,7 @@ export async function walletBalances(a: WalletAddresses): Promise<Record<string,
     tron,
   ];
   const values = [];
-  for (let i = 0; i < tasks.length; i += 5) values.push(...await Promise.all(tasks.slice(i, i + 5).map((task) => task())));
+  for (let i = 0; i < tasks.length; i += 5) values.push(...await Promise.all(tasks.slice(i, i + 5).map((task) => task().catch(() => new Promise((r) => setTimeout(r, 600)).then(task)).catch(() => new Promise((r) => setTimeout(r, 1200)).then(task)))));
   const [btc, eth, sol, bnb, pol, usdt, usdc, arb, ton, avax, tronAcc] = values;
   const trx = Number(tronAcc.balance || 0) / 1e6;
   const usdtTron = Number((tronAcc.trc20 || []).find((t: any) => t.TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t)?.TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t || 0) / 1e6;
