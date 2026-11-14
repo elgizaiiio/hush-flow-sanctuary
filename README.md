@@ -285,6 +285,10 @@ bunx vitest run
 انظر `roadmap.md` لحالة الطلب الحالي؛ الأقسام التاريخية فيه ليست قائمة حقائق حديثة وقد تتعارض بسبب نقل المساحات والخدمات.
 
 ## Current work
+
+### CoArena primary model — 2026-11-14
+- Agent/chat text now tries CoArena `gpt-6-1-terra` first (key in provider_api_keys, provider `coarena`; free tier $5/day, 30 req/min, 2 concurrent), falling back to Cerebras Qwen on any CoArena error. Fixed duplicate `update_plan` tool definitions that CoArena rejected.
+- Verification: 17 agent test files / 73 tests pass; live signed-in API runs on the test account: USD/EGP + Cairo weather, AI news summary in 5 points (12 tool calls, 74 s), iPhone 17 Pro Excel for 3 countries (export_file, 119 s), all on CoArena. Not checked through the chat screen UI.
 ### Agent model → Qwen — 2026-11-14
 - Text/agent turns now use Cerebras `qwen-3.8-27b` via `CEREBRAS_MODELS.text` (the only Qwen id on the key); new bots default to it; whitespace-only step text is trimmed. Voice calls stay on gpt-oss-120b for latency.
 - Verification: 17 agent test files / 71 tests pass; live loop runs: AI news (web_search + read_url), USD/EGP + Alexandria weather (search + read pages), primes script (file_editor + run_code) — all real tool calls, 3–21 s. Not checked through the signed-in chat screen.

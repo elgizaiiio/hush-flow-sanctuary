@@ -52,4 +52,23 @@ describe("cerebrasRequest", () => {
     expect((await cerebrasRequest(["a", "b"], "{}", new AbortController().signal, 0, true)).status).toBe(400);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+
+  it("sends CoArena keys to CoArena with the strongest model", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response("ok"));
+    vi.stubGlobal("fetch", fetcher);
+    const coa = { id: "env-coarena", table: "env" as const, api_key: "coa_x", failure_count: 0, provider: "coarena" as const };
+    await cerebrasRequest([coa], JSON.stringify({ model: "qwen-3.8-27b" }), new AbortController().signal);
+    expect(fetcher.mock.calls[0][0]).toBe("https://coarena.ai/api/v1/chat/completions");
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).model).toBe("gpt-6-1-terra");
+  });
+
+  it("falls back to Cerebras when CoArena is busy", async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response("busy", { status: 503 })).mockResolvedValueOnce(new Response("ok"));
+    vi.stubGlobal("fetch", fetcher);
+    const coa = { id: "env-coarena", table: "env" as const, api_key: "coa_x", failure_count: 0, provider: "coarena" as const };
+    const res = await cerebrasRequest([coa, "csk"], JSON.stringify({ model: "qwen-3.8-27b" }), new AbortController().signal, 0, false);
+    expect(res.status).toBe(200);
+    expect(fetcher.mock.calls[1][0]).toBe("https://api.cerebras.ai/v1/chat/completions");
+    expect(JSON.parse(fetcher.mock.calls[1][1].body).model).toBe("qwen-3.8-27b");
+  });
 });

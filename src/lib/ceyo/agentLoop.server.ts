@@ -1,5 +1,5 @@
 import { CEREBRAS_MODELS } from "@/lib/keys/cerebrasKey";
-import { getCerebrasKeys, markCerebrasFailure, markCerebrasUse, type CerebrasKey } from "@/lib/keys/cerebrasKey";
+import { COARENA_MODEL, COARENA_URL, getCerebrasKeys, markCerebrasFailure, markCerebrasUse, type CerebrasKey } from "@/lib/keys/cerebrasKey";
 import { canUseAuthorizedBackup, classifyProviderFailure } from "./providerFailover";
 import { getProviderKey } from "@/lib/keys/providerKey";
 import { replyLanguageInstruction } from "./replyLanguage";
@@ -12,7 +12,7 @@ import { compactMessages, createFailureTracker, looksLikeFakeToolCall, looksLike
 import { fileEditorScript } from "./fileEditor";
 /** @doc Bot reply loop: Cerebras streams the answer and may call web tools (Browserbase) several times before it finishes. */
 const CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions";
-/** Cheapest + fastest model on Cerebras. */
+/** Cerebras fallback model (CoArena keys override it per request). */
 const MODEL = CEREBRAS_MODELS.text;
 const MAX_STEPS = 16;
 
@@ -105,6 +105,11 @@ async function runTool(name: string, args: any, computer: Computer): Promise<str
   return "Unknown tool.";
 }
 
+/** Rewrites the request's model for a provider that names models differently. */
+function withModel(body: string, model: string): string {
+  try { return JSON.stringify({ ...JSON.parse(body), model }); } catch { return body; }
+}
+
 const sleep = (ms: number, signal: AbortSignal) => new Promise<void>((resolve, reject) => {
   const t = setTimeout(resolve, ms);
   signal.addEventListener("abort", () => { clearTimeout(t); reject(signal.reason); }, { once: true });
@@ -123,7 +128,8 @@ export async function cerebrasRequest(keys: (string | CerebrasKey)[], body: stri
     signal.throwIfAborted();
     const key = keys[keyCursor];
     const credential = typeof key === "string" ? key : key.api_key;
-    const res = await fetch(CEREBRAS_URL, { method: "POST", signal, headers: { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" }, body });
+    const coarena = typeof key !== "string" && key.provider === "coarena";
+    const res = await fetch(coarena ? COARENA_URL : CEREBRAS_URL, { method: "POST", signal, headers: { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" }, body: coarena ? withModel(body, COARENA_MODEL) : body });
     if (res.ok) {
       if (typeof key !== "string") await markCerebrasUse(key);
       return res;
@@ -131,6 +137,13 @@ export async function cerebrasRequest(keys: (string | CerebrasKey)[], body: stri
     const failure = classifyProviderFailure(res.status);
     const after = Number(res.headers.get("retry-after"));
     if (typeof key !== "string" && failure !== "request_error") await markCerebrasFailure(key, res.status, failure, Number.isFinite(after) && after > 0 ? after : undefined);
+    // CoArena is a separate primary provider: on any non-request failure fall through to the next key (Cerebras) instead of waiting.
+    if (coarena) console.warn(`[coarena] ${res.status}, falling back: ${(await res.clone().text().catch(() => "")).slice(0, 200)}`);
+    if (coarena && keyCursor + 1 < keys.length && (failure !== "request_error" || res.status === 400 || res.status === 404 || res.status === 413)) {
+      await res.body?.cancel().catch(() => {});
+      keyCursor++;
+      continue;
+    }
     if (canUseAuthorizedBackup(failure, authorizedBackup) && keyCursor + 1 < keys.length) {
       await res.body?.cancel().catch(() => {});
       keyCursor++;
@@ -170,7 +183,9 @@ export async function runAgentLoop(
   let plan: string[] = [];
   addComputerTool("update_plan", "Write or update the step-by-step plan for this task. Mark finished steps with [x] at the start.", { steps: { type: "array", items: { type: "string" } } }, ["steps"], async (args) => { plan = (Array.isArray(args.steps) ? args.steps : []).map(String).slice(0, 20); emit({ id: `plan-${crypto.randomUUID().slice(0, 8)}`, type: "agent.plan", steps: plan }); return "Plan saved."; });
   const failures = createFailureTracker();
-  const allTools = [...tools, ...extras.map((extra) => extra.def)];
+  // Tool names must be unique (OpenAI-compatible providers reject duplicates); the first registration wins, matching which runner executes.
+  const seenTools = new Set<string>();
+  const allTools = [...tools, ...extras.map((extra) => extra.def)].filter((def: any) => { const name = def?.function?.name; if (!name || seenTools.has(name)) return false; seenTools.add(name); return true; });
   const maxSteps = opts.maxSteps ?? MAX_STEPS;
   const keys = opts.chatModel ? [] : await getCerebrasKeys();
   if (!opts.chatModel && !keys.length) throw new Error("AI is not configured");

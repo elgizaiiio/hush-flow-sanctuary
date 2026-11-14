@@ -1,3 +1,6 @@
+## CoArena strongest model — 2026-11-14
+- [x] Agent and chat use CoArena GPT-6.1 Terra first, Qwen on Cerebras as automatic backup; live news and Excel tasks passed.
+
 ## OpenManus/Grok-style agent — 2026-11-13
 - [x] Think-act-check loop rules, tool-choice guide, refusal and fake tool-call retries, file_editor tool, longer step budgets, rate-limited key waits instead of failing.
 

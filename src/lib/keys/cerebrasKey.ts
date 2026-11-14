@@ -20,7 +20,13 @@ export interface CerebrasKey {
   table: "provider_api_keys" | "env";
   api_key: string;
   failure_count: number;
+  /** Set for CoArena keys: requests go to this endpoint with this model instead of Cerebras. */
+  provider?: "coarena" | "cerebras";
 }
+
+/** CoArena (OpenAI-compatible) serves the strongest model first; Cerebras keys follow as the automatic fallback. */
+export const COARENA_URL = "https://coarena.ai/api/v1/chat/completions";
+export const COARENA_MODEL = "gpt-6-1-terra";
 
 export const CEREBRAS_BASE = "https://api.cerebras.ai/v1";
 
@@ -43,9 +49,37 @@ function adminClient(): SupabaseClient | null {
   return createClient(url, serviceKey, { auth: { persistSession: false } });
 }
 
-/** Every usable key, least-recently-used first. */
+/** Active CoArena keys not on cooldown (primary text model). */
+async function getCoarenaKeys(supabase: SupabaseClient | null): Promise<CerebrasKey[]> {
+  const out: CerebrasKey[] = [];
+  if (supabase) {
+    const now = Date.now();
+    const { data } = await supabase
+      .from("provider_api_keys")
+      .select("id,api_key,cooldown_until,failure_count")
+      .eq("provider", "coarena")
+      .eq("status", "active")
+      .order("last_used_at", { ascending: true, nullsFirst: true });
+    for (const r of (data ?? []) as Array<Record<string, unknown>>) {
+      const api_key = String(r.api_key ?? "").trim();
+      const cd = r.cooldown_until as string | null;
+      if (!api_key || (cd && new Date(cd).getTime() > now)) continue;
+      out.push({ id: String(r.id), table: "provider_api_keys", api_key, failure_count: Number(r.failure_count ?? 0), provider: "coarena" });
+    }
+  }
+  const env = (process.env.COARENA_API_KEY || "").trim();
+  if (!out.length && env) out.push({ id: "env-coarena", table: "env", api_key: env, failure_count: 0, provider: "coarena" });
+  return out;
+}
+
+/** Every usable key: CoArena first, then Cerebras least-recently-used first. */
 export async function getCerebrasKeys(): Promise<CerebrasKey[]> {
   const supabase = adminClient();
+  const coarena = await getCoarenaKeys(supabase);
+  return [...coarena, ...(await getCerebrasOnlyKeys(supabase))];
+}
+
+async function getCerebrasOnlyKeys(supabase: SupabaseClient | null): Promise<CerebrasKey[]> {
   const rows: CerebrasKey[] = [];
   if (supabase) {
     const now = Date.now();
@@ -107,7 +141,8 @@ export async function markCerebrasFailure(
   const supabase = adminClient();
   if (!supabase) return;
   const temporary = status === 402 || status === 429 || status >= 500;
-  const cooldownSeconds = retryAfterSeconds ?? (status === 429 ? 60 : 300);
+  // CoArena busy (5xx) clears in seconds; its daily quota 429 resets at midnight UTC but a short cooldown re-probes cheaply.
+  const cooldownSeconds = retryAfterSeconds ?? (key.provider === "coarena" ? (status >= 500 ? 20 : 120) : status === 429 ? 60 : 300);
   await supabase
     .from("provider_api_keys")
     .update({

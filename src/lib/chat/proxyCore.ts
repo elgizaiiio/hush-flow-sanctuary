@@ -18,6 +18,8 @@ import {
   CEREBRAS_BASE,
   CEREBRAS_MODELS,
   getCerebrasKeys,
+  COARENA_MODEL,
+  COARENA_URL,
   markCerebrasFailure,
   markCerebrasUse,
 } from "../keys/cerebrasKey";
@@ -124,10 +126,11 @@ async function streamCerebras(
   for (const key of keys) {
     let resp: Response;
     try {
-      resp = await fetch(`${CEREBRAS_BASE}/chat/completions`, {
+      const coarena = key.provider === "coarena";
+      resp = await fetch(coarena ? COARENA_URL : `${CEREBRAS_BASE}/chat/completions`, {
         method: "POST",
         headers: { Authorization: `Bearer ${key.api_key}`, "Content-Type": "application/json" },
-        body,
+        body: coarena ? JSON.stringify({ ...JSON.parse(body), model: COARENA_MODEL }) : body,
       });
     } catch (error) {
       await markCerebrasFailure(
@@ -146,14 +149,14 @@ async function streamCerebras(
           "Content-Type": "text/event-stream; charset=utf-8",
           "Cache-Control": "no-cache, no-transform",
           Connection: "keep-alive",
-          "x-model-used": model,
+          "x-model-used": key.provider === "coarena" ? COARENA_MODEL : model,
         },
       });
     }
     const detail = (await resp.text().catch(() => "")).slice(0, 400);
     const retryAfter = Number(resp.headers.get("retry-after") || "") || undefined;
     await markCerebrasFailure(key, resp.status, detail || `upstream_${resp.status}`, retryAfter);
-    if (resp.status === 400) return null; // malformed for Cerebras — let the fallback try
+    if (resp.status === 400 && key.provider !== "coarena") return null; // malformed for Cerebras — let the fallback try
   }
   return null;
 }
