@@ -363,7 +363,7 @@ function Plans({ nav }: { nav: Nav }) {
   );
 }
 
-type VaultItem = { id: string; kind: "login" | "card" | "contact"; title: string; detail: string };
+type VaultItem = { id: string; kind: "login" | "card" | "contact"; title: string; detail: string; password?: string };
 const VAULT_KEY = "ceyo_vault_v1";
 
 function Vault_({ nav }: { nav: Nav }) {
@@ -392,11 +392,13 @@ function Vault_({ nav }: { nav: Nav }) {
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
   }, [menu]);
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const save = (next: VaultItem[]) => { if (!vaultKey) return false; if (!saveSetting(vaultKey, JSON.stringify(next))) { toast.error("Could not save to this device."); return false; } setItems(next); return true; };
   const shown = items.filter((item) => (tab === "all" || item.kind === tab) && `${item.title} ${item.detail}`.toLowerCase().includes(query.toLowerCase()));
   const labels = { login: "Login", card: "Card", contact: "Contact info" } as const;
   const count = (kind: VaultItem["kind"]) => items.filter((item) => item.kind === kind).length;
-  const openAdd = (kind: VaultItem["kind"]) => { setAdding(kind); setMenu(false); setTitle(""); setDetail(""); };
+  const openAdd = (kind: VaultItem["kind"]) => { setAdding(kind); setMenu(false); setTitle(""); setDetail(""); setPassword(""); setShowPw(false); };
   return (
     <Shell
       className="ceyo-vault"
@@ -421,21 +423,23 @@ function Vault_({ nav }: { nav: Nav }) {
       {adding && <form className="ceyo-vault-editor" onSubmit={(event) => {
         event.preventDefault();
         if (!title.trim()) return;
+        if (adding === "login" && (!detail.trim() || !password)) { toast.error("Enter the email or username and the password"); return; }
         try { validateVaultDetail(adding, detail); } catch (error) { toast.error(error instanceof Error ? error.message : "Invalid details"); return; }
-        if (!save([{ id: crypto.randomUUID(), kind: adding, title: title.trim(), detail: detail.trim() }, ...items])) return;
+        if (!save([{ id: crypto.randomUUID(), kind: adding, title: title.trim(), detail: detail.trim(), ...(adding === "login" && password ? { password } : {}) }, ...items])) return;
         setAdding(null);
         toast.success("Saved to your vault");
       }}>
         <div className="ceyo-vault-fields">
           <label className="ceyo-vault-field"><span>{adding === "login" ? "Website" : adding === "card" ? "Card name" : "Label"}</span><input aria-label="Title" maxLength={100} placeholder={adding === "login" ? "example.com" : adding === "card" ? "e.g. Travel" : "e.g. Home"} value={title} onChange={(event) => setTitle(event.target.value)} autoFocus /></label>
-          <label className="ceyo-vault-field"><span>{adding === "login" ? "Username or email" : adding === "card" ? "Last 4 digits" : "Contact details"}</span><input aria-label="Details" maxLength={adding === "card" ? 4 : 160} inputMode={adding === "card" ? "numeric" : "text"} pattern={adding === "card" ? "[0-9]{4}" : undefined} placeholder={adding === "login" ? "name@example.com" : adding === "card" ? "1234" : "Phone, email or address"} value={detail} onChange={(event) => setDetail(event.target.value)} /></label>
+          <label className="ceyo-vault-field"><span>{adding === "login" ? "Username or email" : adding === "card" ? "Last 4 digits" : "Contact details"}</span><input aria-label="Details" maxLength={adding === "card" ? 4 : 160} inputMode={adding === "card" ? "numeric" : "text"} pattern={adding === "card" ? "[0-9]{4}" : undefined} placeholder={adding === "login" ? "name@example.com" : adding === "card" ? "1234" : "Phone, email or address"} value={detail} onChange={(event) => setDetail(event.target.value)} autoComplete={adding === "login" ? "username" : undefined} /></label>
+          {adding === "login" && <label className="ceyo-vault-field"><span>Password</span><span className="flex items-center gap-2"><input aria-label="Password" type={showPw ? "text" : "password"} autoComplete="current-password" maxLength={200} placeholder="••••••••" value={password} onChange={(event) => setPassword(event.target.value)} className="min-w-0 flex-1" /><Button variant="ghost" size="sm" type="button" onClick={() => setShowPw((v) => !v)}>{showPw ? "Hide" : "Show"}</Button></span></label>}
         </div>
-        <p className="ceyo-vault-note">{adding === "card" ? "Only the last four digits are saved. Never enter a full card number or security code." : "Saved on this device, privately for your account."}</p>
-        <Button variant="ghost" type="submit" className="ceyo-vault-save" disabled={!title.trim()}>{adding === "card" ? "Add card" : adding === "contact" ? "Save contact info" : "Save login"}</Button>
+        <p className="ceyo-vault-note">{adding === "card" ? "Only the last four digits are saved. Never enter a full card number or security code." : adding === "login" ? "Website, email or username, and password are saved on this device only, privately for your account." : "Saved on this device, privately for your account."}</p>
+        <Button variant="ghost" type="submit" className="ceyo-vault-save" disabled={!title.trim() || (adding === "login" && (!detail.trim() || !password))}>{adding === "card" ? "Add card" : adding === "contact" ? "Save contact info" : "Save login"}</Button>
       </form>}
       {!adding && shown.length > 0 && <div className="ceyo-vault-list">{shown.map((item) => <div className="ceyo-vault-row" key={item.id}>
         <span className="ceyo-row-icon">{item.kind === "card" ? <CreditCard size={18} /> : item.kind === "login" ? <KeyRound size={18} /> : <User size={18} />}</span>
-        <span><strong>{item.title}</strong><small>{item.detail}</small></span>
+        <span><strong>{item.title}</strong><small>{item.detail}{item.password ? " · ••••••••" : ""}</small></span>
         <Button variant="ghost" size="icon" type="button" aria-label={`Delete ${item.title}`} onClick={() => save(items.filter((candidate) => candidate.id !== item.id))}><Trash2 size={16} /></Button>
       </div>)}</div>}
       {!shown.length && !adding && <div className="hub-empty-state"><span className="hub-empty-icon"><Vault size={22} /></span><strong>{items.length ? "No matching items" : "Your vault is empty"}</strong><p>{items.length ? "Try another search or category." : "Add a login, card label or contact info from the + button."}</p></div>}
@@ -605,13 +609,10 @@ function callTime(iso: string) {
 }
 
 function Computer({ nav }: { nav: Nav }) {
-  const [confirming, setConfirming] = useState(false);
   return (
     <Shell title="Agent Computer" back={() => nav("/settings")}>
-      <Group><Row label="Reset Computer" sub="No computer service connected" disabled right={<span />} /></Group>
-      <p className="ceyo-note">Computer execution is unavailable. Web research and saved text files remain available.</p>
-      {confirming && <div className="ceyo-card ceyo-confirm-card"><strong>Reset this computer?</strong><p>This requires a connected bot computer. Recent changes may be lost.</p><div className="hub-form-footer"><button type="button" className="hub-button hub-button-primary" onClick={() => { setConfirming(false); toast.error("No connected bot computer is available to reset"); }}>Reset</button><button type="button" className="hub-button hub-button-secondary" onClick={() => setConfirming(false)}>Cancel</button></div></div>}
-      <Group><Row label="Connection" value="Not connected" right={<span />} /></Group>
+      <Group><Row label="Status" value="Ready" right={<Check size={18} />} /></Group>
+      <p className="ceyo-note">Each bot gets its own private cloud computer (Linux with Python, Node.js and a web browser) whenever a task needs it. It starts on its own and is wiped when the task ends — just ask your bot to do the work.</p>
     </Shell>
   );
 }
