@@ -1,6 +1,6 @@
 /** @doc Interactive cards inside agent turns: images/videos, video proposal, question, approval, task and plan. */
 import { useEffect, useRef, useState } from "react";
-import { Download, FileText, Film, Lock, Check, ListTodo, ShieldCheck, Sparkles, Loader2, Circle, CheckCircle2, RotateCw } from "lucide-react";
+import { Download, FileText, Film, Lock, Check, ListTodo, ShieldCheck, Sparkles, Loader2 } from "lucide-react";
 import { agentApi, mediaStatus, AgentApiError, type AgentRequest, type MediaModelInfo } from "@/lib/agentsky/client";
 import type { MediaPayload, VideoProposal } from "@/lib/agentsky/transcript";
 
@@ -331,25 +331,24 @@ export function TaskCard({ title, dueAt, lang, onOpen }: { title: string; dueAt:
 
 export function PlanCard({ title, steps, lang }: { title: string; steps: { title: string; status: string }[]; lang: Lang }) {
   const done = steps.filter((s) => s.status === "done").length;
+  const all = steps.length > 0 && done === steps.length;
   return (
-    <div className="ag-card ag-fade-in max-w-[560px]">
+    <div className="ag-card ag-fade-in ag-plan max-w-[560px]" data-complete={all}>
       <div className="ag-card__head justify-between">
-        <span className="truncate">{title || tr(lang, "Plan", "الخطة")}</span>
-        <span className="text-[12.5px] font-normal text-[color:var(--ag-muted)]">
-          {done}/{steps.length}
+        <span className="flex min-w-0 items-center gap-2">
+          {all && <span className="ag-plan-tick ag-plan-tick--lg"><Check size={12} strokeWidth={3} /></span>}
+          <span className="truncate">{title || tr(lang, "Plan", "الخطة")}</span>
         </span>
+        <span className="text-[12.5px] font-normal text-[color:var(--ag-muted)]">{all ? tr(lang, "Done", "خلصت") : `${done}/${steps.length}`}</span>
       </div>
-      <div className="ag-card__body space-y-1.5">
+      <div className="ag-plan-bar"><span style={{ width: `${steps.length ? (done / steps.length) * 100 : 0}%` }} /></div>
+      <div className="ag-card__body space-y-2">
         {steps.map((s, i) => (
-          <div key={i} className="flex items-start gap-2.5 text-[13.5px]">
-            {s.status === "done" ? (
-              <CheckCircle2 size={16} className="mt-0.5 flex-none text-[color:var(--ag-c1)]" />
-            ) : s.status === "in_progress" ? (
-              <RotateCw size={16} className="mt-0.5 flex-none animate-spin [animation-duration:2.5s]" />
-            ) : (
-              <Circle size={16} className="mt-0.5 flex-none text-[color:var(--ag-muted)]" />
-            )}
-            <span className={s.status === "done" ? "text-[color:var(--ag-muted)] line-through" : ""}>{s.title}</span>
+          <div key={i} className="flex items-start gap-2.5 text-[13.5px]" data-status={s.status}>
+            {s.status === "done" ? <span className="ag-plan-tick"><Check size={11} strokeWidth={3} /></span>
+              : s.status === "in_progress" ? <span className="ag-plan-live" aria-label={tr(lang, "Working", "شغال")} />
+              : <span className="ag-plan-todo" />}
+            <span className={s.status === "done" ? "text-[color:var(--ag-muted)]" : s.status === "in_progress" ? "font-medium" : ""}>{s.title}</span>
           </div>
         ))}
       </div>

@@ -45,7 +45,7 @@ export async function waitForConnectionRefresh(refresh: () => Promise<boolean>, 
   for (let attempt = 0; attempt < 72; attempt++) {
     await new Promise((resolve) => window.setTimeout(resolve, 2500));
     if (await refresh()) return;
-    if (popup?.closed && attempt > 4) throw new Error("Authorization was not completed");
+    if (popup?.closed && attempt > 12) throw new Error("Authorization was not completed");
   }
   throw new Error("Authorization is still pending. Try refreshing your accounts.");
 }

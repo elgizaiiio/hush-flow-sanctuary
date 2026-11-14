@@ -20,11 +20,11 @@ export function createFailureTracker() {
 
 /** Shrinks old tool outputs when the transcript grows, keeping the latest ones intact. */
 export function compactMessages(messages: Msg[], budget = 40_000, keepRecent = 5): Msg[] {
-  const size = () => messages.reduce((n, m) => n + (m.content?.length ?? 0), 0);
+  const size = () => messages.reduce((n, m) => n + (typeof m.content === "string" ? m.content.length : 2000), 0);
   if (size() <= budget) return messages;
   const toolIdx = messages.map((m, i) => (m.role === "tool" ? i : -1)).filter((i) => i >= 0);
   for (const i of toolIdx.slice(0, Math.max(0, toolIdx.length - keepRecent))) {
-    const c = messages[i].content ?? "";
+    const c = typeof messages[i].content === "string" ? (messages[i].content as string) : "";
     if (c.length > 600) messages[i] = { ...messages[i], content: `${c.slice(0, 400)}\n…[older output shortened; rerun if needed]…\n${c.slice(-150)}` };
     if (size() <= budget) break;
   }

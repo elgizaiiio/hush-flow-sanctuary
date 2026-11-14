@@ -16,7 +16,7 @@ export const integrationConnect = createServerFn({ method: "POST" })
     const request = getRequest();
     const { userId } = await authenticate(request);
     const origin = new URL(request.url).origin;
-    return { url: await connectAccount(userId, data.app, `${origin}/settings/apps/${encodeURIComponent(data.app)}`) };
+    return { url: await connectAccount(userId, data.app, `${origin}/connected?app=${encodeURIComponent(data.app)}`) };
   });
 export const integrationDisconnect = createServerFn({ method: "POST" })
   .inputValidator((input) => z.object({ accountId: z.string().min(1).max(200) }).parse(input))
@@ -29,10 +29,10 @@ export const integrationDisconnect = createServerFn({ method: "POST" })
     return { ok: true };
   });
 export const integrationApproval = createServerFn({ method: "POST" })
-  .inputValidator((input) => z.object({ id: z.string().uuid(), approved: z.boolean() }).parse(input))
+  .inputValidator((input) => z.object({ id: z.string().uuid(), approved: z.boolean(), always: z.boolean().optional() }).parse(input))
   .handler(async ({ data }) => {
     const { authenticate } = await import("./auth.server");
-    const { executeAction } = await import("./composio.server");
+    const { executeAction, accounts: listAccounts } = await import("./composio.server");
     const { db, userId } = await authenticate(getRequest());
     const { data: pending, error } = await db.from("agent_action_requests").select("*").eq("id", data.id).eq("user_id", userId).single();
     if (error || !pending) throw new Error("Request not found");
@@ -42,6 +42,16 @@ export const integrationApproval = createServerFn({ method: "POST" })
     if (claimError) throw new Error(claimError.message);
     if (!claimed?.length) return { status: "running" };
     if (!data.approved) return { status: "rejected" };
+    if (data.always) {
+      // "Always allow" is the user's own choice for this app; stored where only the server can write it.
+      const app = (await listAccounts(userId)).find((a: { id: string }) => a.id === pending.account_id)?.app;
+      if (app) {
+        const { data: u } = await supabaseAdmin.auth.admin.getUserById(userId);
+        const list = new Set<string>(Array.isArray(u.user?.app_metadata?.auto_approve_apps) ? u.user.app_metadata.auto_approve_apps : []);
+        list.add(String(app));
+        await supabaseAdmin.auth.admin.updateUserById(userId, { app_metadata: { ...(u.user?.app_metadata || {}), auto_approve_apps: [...list] } });
+      }
+    }
     let result;
     try {
       result = await executeAction(userId, { account_id: pending.account_id, tool_slug: pending.tool_slug, arguments: pending.arguments });
@@ -51,7 +61,7 @@ export const integrationApproval = createServerFn({ method: "POST" })
     }
     const { error: writeError } = await supabaseAdmin.from("agent_action_requests").update({ status: "completed", result }).eq("id", pending.id).eq("user_id", userId);
     if (writeError) throw new Error("The action ran, but its receipt could not be saved. Do not repeat the action.");
-    const { error: deliveryError } = await db.from("messages").upsert({ id: pending.id, user_id: userId, conversation_id: pending.conversation_id, role: "assistant", content: `${pending.tool_slug.replace(/_/g, " ")}: completed.\n${JSON.stringify(result.data || result).slice(0, 6000)}`, metadata: { action_id: pending.id } }, { onConflict: "id", ignoreDuplicates: true });
+    const { error: deliveryError } = await db.from("messages").upsert({ id: pending.id, user_id: userId, conversation_id: pending.conversation_id, role: "assistant", content: `✓ ${pending.tool_slug.replace(/_/g, " ").toLowerCase()}\n\n\`\`\`json\n${JSON.stringify(result.data || result, null, 1).slice(0, 2500)}\n\`\`\``, metadata: { action_id: pending.id } }, { onConflict: "id", ignoreDuplicates: true });
     if (deliveryError) throw new Error("The action completed, but its chat receipt could not be saved.");
     return { status: "completed" };
   });

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as ConnectedRouteImport } from './routes/connected'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -79,6 +80,11 @@ const SplatRoute = SplatRouteImport.update({
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectedRoute = ConnectedRouteImport.update({
+  id: '/connected',
+  path: '/connected',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -356,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/about': typeof AboutRoute
+  '/connected': typeof ConnectedRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/privacy': typeof PrivacyRoute
@@ -414,6 +421,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/about': typeof AboutRoute
+  '/connected': typeof ConnectedRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/privacy': typeof PrivacyRoute
@@ -473,6 +481,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
   '/about': typeof AboutRoute
+  '/connected': typeof ConnectedRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/privacy': typeof PrivacyRoute
@@ -533,6 +542,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/about'
+    | '/connected'
     | '/contact'
     | '/cookies'
     | '/privacy'
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/about'
+    | '/connected'
     | '/contact'
     | '/cookies'
     | '/privacy'
@@ -649,6 +660,7 @@ export interface FileRouteTypes {
     | '/'
     | '/$'
     | '/about'
+    | '/connected'
     | '/contact'
     | '/cookies'
     | '/privacy'
@@ -708,6 +720,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
   AboutRoute: typeof AboutRoute
+  ConnectedRoute: typeof ConnectedRoute
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -784,6 +797,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connected': {
+      id: '/connected'
+      path: '/connected'
+      fullPath: '/connected'
+      preLoaderRoute: typeof ConnectedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -1164,6 +1184,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
   AboutRoute: AboutRoute,
+  ConnectedRoute: ConnectedRoute,
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
   PrivacyRoute: PrivacyRoute,

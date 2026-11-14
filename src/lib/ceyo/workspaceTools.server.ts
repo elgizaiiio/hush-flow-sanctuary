@@ -167,13 +167,27 @@ export function workspaceTools(ctx: Context): AgentTool[] {
     const input = actionInput.parse(args);
     const account = await ownedAccount(userId, input.account_id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: me } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const always = Array.isArray(me.user?.app_metadata?.auto_approve_apps) && me.user.app_metadata.auto_approve_apps.includes(account.app);
+    if (always) {
+      const { executeAction } = await import("./composio.server");
+      const result = await executeAction(userId, { account_id: account.id, tool_slug: input.tool_slug, arguments: input.arguments });
+      return JSON.stringify({ executed: true, note: "User set Always allow for this app; action ran.", result: result.data ?? result }).slice(0, 12000);
+    }
     const request = checked(await supabaseAdmin.from("agent_action_requests").insert({ user_id: userId, conversation_id: ctx.conversationId, account_id: account.id, tool_slug: input.tool_slug, arguments: input.arguments as never }).select("id").single());
     return JSON.stringify({ type: "ceyo.widget", widget: "integration_approval", data: { id: request.id, app: account.app, account: account.label, action: input.tool_slug, arguments: input.arguments } });
   });
   add("wallet_overview", "Read the user's own crypto wallet: receive addresses per network and current balances. Never reveals keys.", {}, [], async () => {
     const { getOrCreateWallet, walletBalances } = await import("@/lib/wallet/wallet.server");
     const addresses = await getOrCreateWallet(userId);
-    return JSON.stringify({ addresses, balances: await walletBalances(addresses) });
+    const balances = await walletBalances(addresses) as Record<string, number>;
+    const ids = Object.keys(balances);
+    let prices: Record<string, { usd?: number; usd_24h_change?: number }> = {};
+    try { prices = await (await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd&include_24hr_change=true`, { signal: AbortSignal.timeout(8000) })).json(); } catch { /* prices optional */ }
+    const assets = ids.map((id) => { const amount = Number(balances[id]) || 0; const price = prices[id]?.usd ?? null; const change = prices[id]?.usd_24h_change ?? null; return { id, amount, usd: price === null ? null : amount * price, change24h: change }; });
+    const total = assets.reduce((n, a) => n + (a.usd || 0), 0);
+    const delta = assets.reduce((n, a) => n + (a.usd && a.change24h ? a.usd - a.usd / (1 + a.change24h / 100) : 0), 0);
+    return JSON.stringify({ type: "ceyo.widget", widget: "wallet_balance", data: { totalUsd: total, changeUsd24h: delta, assets: assets.filter((a) => a.amount > 0), empty: !assets.some((a) => a.amount > 0) }, addresses });
   });
   add("wallet_propose_send", "Show a confirmation card to send crypto from the user's wallet. Nothing is sent until the user taps Confirm. token is one of: bitcoin, ethereum, solana, binancecoin, tether (USDT on Ethereum), usd-coin (USDC on Base), the-open-network, polygon-ecosystem-token, arbitrum, avalanche-2, tron, tether-tron (USDT on Tron). A 0.5% platform fee applies.", { token: str, to: str, amount: { type: "number" }, note: str }, ["token", "to", "amount"], async (args) => {
     const { WALLET_TOKENS } = await import("@/pages/wallet/walletTokens");

@@ -37,7 +37,7 @@ import { MediaCard, PlanCard, TaskCard, VideoProposalCard } from "@/components/a
 import { calls } from "@/lib/calls/callStore";
 import { HoldToRecord } from "./HoldToRecord";
 import { VoiceMessage } from "./VoiceControls";
-import { FilePreview, AttachmentPreview } from "./FilePreview";
+import { FilePreview } from "./FilePreview";
 import { MediaCreator } from "./MediaCreator";
 import "@/styles/chat-previews.css";
 import { prefersVoiceReply, type AgentVoiceSettings, type RecordingOrigin } from "@/lib/audio/agentVoice";
@@ -51,6 +51,7 @@ import { BotAvatar, HubSpinner, type HubLang } from "./HubParts";
 import { readReactions, writeReactions, REACTIONS } from "./chatPrefs";
 import { IntegrationApprovalCard } from "@/components/agent/IntegrationApprovalCard";
 import { WalletApprovalCard } from "@/components/agent/WalletApprovalCard";
+import { WalletBalanceCard } from "@/components/agent/WalletBalanceCard";
 import { readTextAttachment } from "@/lib/ceyo/content";
 import { saveDocument } from "@/lib/ceyo/resources";
 import { toast } from "sonner";
@@ -104,7 +105,7 @@ function Composer({
   queue: { id: string; text: string }[];
   replyTo: string | null;
   onCancelReply: () => void;
-  onSend: (text: string, origin?: RecordingOrigin) => void;
+  onSend: (text: string, origin?: RecordingOrigin, images?: string[]) => void;
   onStop: () => void;
   onUnqueue: (id: string) => void;
   onNew: () => void;
@@ -132,6 +133,13 @@ function Composer({
     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   }, [text]);
   useEffect(() => { if (replyTo) textarea.current?.focus(); }, [replyTo]);
+  const plusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!plusOpen) return;
+    const close = (e: Event) => { if (!plusRef.current?.contains(e.target as Node)) setPlusOpen(false); };
+    document.addEventListener("pointerdown", close, true);
+    return () => document.removeEventListener("pointerdown", close, true);
+  }, [plusOpen]);
   useEffect(() => { recordingAlive.current = true; return () => { recordingAlive.current = false; }; }, []);
 
   const submit = async () => {
@@ -139,14 +147,16 @@ function Composer({
     if (uploading || (!typed && !files.length)) return;
     setUploading(true);
     try {
-      const documents = await Promise.all(files.map(readTextAttachment));
+      const pics = files.filter((f) => f.type.startsWith("image/"));
+      const images = await Promise.all(pics.map(imageToDataUrl));
+      const documents = await Promise.all(files.filter((f) => !f.type.startsWith("image/")).map(readTextAttachment));
       const refs: string[] = [];
       for (const doc of documents) {
         const saved = await saveDocument(doc);
         refs.push(`Attached document: ${doc.name}; read_file id=${saved.id}. Read its actual contents before answering.`);
       }
-      const value = [typed, ...refs].filter(Boolean).join("\n\n");
-      onSend(replyTo ? `> ${replyTo.slice(0, 200).replace(/\n/g, " ")}\n\n${value}` : value);
+      const value = [typed || (images.length ? (ar ? "شوف الصورة دي" : "Look at this image") : ""), ...refs].filter(Boolean).join("\n\n");
+      onSend(replyTo ? `> ${replyTo.slice(0, 200).replace(/\n/g, " ")}\n\n${value}` : value, {}, images);
       setText(""); setFiles([]); onCancelReply();
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not send files"); }
     finally { setUploading(false); }
@@ -182,16 +192,16 @@ function Composer({
         <div className="cx-reply-chip"><Reply size={14} /><span dir="auto">{replyTo}</span><button type="button" aria-label="Cancel reply" onClick={onCancelReply}><X size={14} /></button></div>
       )}
       {mediaCreator && <MediaCreator ar={ar} onClose={() => setMediaCreator(false)} />}
-      {files.map((file, i) => <AttachmentPreview key={`preview-${i}`} file={file} />)}
       {files.length > 0 && (
-        <div className="cx-files">{files.map((f, i) => <span key={`${f.name}-${i}`} className="cx-file-chip"><Paperclip size={13} /><span>{f.name}</span><button type="button" aria-label="Remove file" onClick={() => setFiles((c) => c.filter((_, j) => j !== i))}><X size={13} /></button></span>)}</div>
+        <div className="cx-files">{files.map((f, i) => f.type.startsWith("image/")
+          ? <span key={`${f.name}-${i}`} className="cx-thumb"><ThumbImage file={f} /><button type="button" aria-label="Remove image" onClick={() => setFiles((c) => c.filter((_, j) => j !== i))}><X size={12} /></button></span>
+          : <span key={`${f.name}-${i}`} className="cx-file-chip"><Paperclip size={13} /><span>{f.name}</span><button type="button" aria-label="Remove file" onClick={() => setFiles((c) => c.filter((_, j) => j !== i))}><X size={13} /></button></span>)}</div>
       )}
       <input ref={fileIn} type="file" multiple hidden onChange={(e) => addFiles(e.target.files)} />
       <input ref={camIn} type="file" accept="image/*" capture="environment" hidden onChange={(e) => addFiles(e.target.files)} />
       <input ref={mediaIn} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => addFiles(e.target.files)} />
       <div className="cx-composer" data-listening={listening}>
-        <div className="cx-plus-wrap">
-          {plusOpen && <div className="cx-scrim" onPointerDown={() => setPlusOpen(false)} />}
+        <div className="cx-plus-wrap" ref={plusRef}>
           <button type="button" className="cx-circle" aria-label="More" onClick={() => setPlusOpen((o) => !o)}><Plus size={20} /></button>
           {plusOpen && (
             <div className="cx-pop cx-pop-up" role="menu">
@@ -316,13 +326,31 @@ export function HubChat({
     else if (isUsageExhausted(err)) setToast(null);
   }, [lastAgent?.error, s.error, ar]);
 
-  const startConversation = async (text: string, origin: RecordingOrigin = {}) => {
+  /** Opens the app's sign-in right away, watches for the new account and tells the bot to carry on. */
+  const connectInline = async (app: { id?: string; name: string }) => {
+    try {
+      const [{ integrations }, backend] = await Promise.all([import("@/lib/integrationsData"), import("@/lib/integrationBackend")]);
+      const key = (app.id || app.name).toLowerCase().replace(/[\s_-]+/g, "");
+      const item = integrations.find((i) => [i.id, i.app, i.name].some((v) => (v || "").toLowerCase().replace(/[\s_-]+/g, "") === key)) || ({ id: key, app: key, name: app.name, domain: `${key}.com`, description: "" } as never);
+      const slug = backend.integrationSlug(item.app);
+      const count = async () => (await backend.loadIntegrationConnections([item])).accounts.filter((a) => a.app === slug && a.status === "ACTIVE").length;
+      const before = await count();
+      const result = await backend.startIntegrationConnection(item);
+      await backend.waitForConnectionRefresh(async () => (await count()) > before, result.popup);
+      setToast({ title: ar ? `اتربط ${item.name}` : `${item.name} connected`, body: ar ? "الوكيل هيكمل شغله دلوقتي" : "Your bot is continuing" });
+      void s.send(ar ? `ربطت ${item.name}. كمّل الشغل من مكان ما وقفت.` : `I connected ${item.name}. Continue the work from where you stopped.`);
+    } catch (error) {
+      setToast({ title: ar ? "الربط ما كملش" : "Not connected", body: error instanceof Error ? error.message : "", tone: "error" });
+    }
+  };
+
+  const startConversation = async (text: string, origin: RecordingOrigin = {}, images: string[] = []) => {
     if (demo) return;
     const messageId = crypto.randomUUID();
     setFirstMessage({ id: messageId, text, at: new Date().toISOString(), sessionId: null, ...origin });
     setStarting(true);
     try {
-      const result = await agentApi.createSession({ agentId: agent.id, text, messageId, origin });
+      const result = await agentApi.createSession({ agentId: agent.id, text, images, messageId, origin });
       workspace.upsertSession(result.session);
       setFirstMessage((pending) => pending ? { ...pending, sessionId: result.session.id } : null);
       onSession(result.session.id);
@@ -335,6 +363,7 @@ export function HubChat({
   };
 
   // Flatten turns into bubbles (group replies split per speaker).
+  const botReacts = useMemo<Record<string, string>>(() => ({}), [s.turns]);
   const bubbles = useMemo<Bubble[]>(() => {
     const out: Bubble[] = [];
     let lastAt: string | undefined;
@@ -348,12 +377,18 @@ export function HubChat({
     }
     source.forEach((turn: any, turnIndex) => {
       if (turn.type === "user") {
+        if (/^\[reacted \S+ to: /.test(turn.text || "")) return;
         lastAt = turn.at || lastAt;
         out.push({ key: turn.id, turnId: turn.id, role: "user", text: turn.text, at: turn.at, turn, partIndex: 0, lastPart: true, turnIndex });
         return;
       }
       const parsed = group ? groupTranscript(turn.text || "") : [{ speaker: "", text: turn.text || "" }];
       const parts = parsed.length ? parsed : [{ speaker: "", text: "" }];
+      // The bot can react to the user's message by starting its reply with [[react:EMOJI]].
+      const lastUser = [...out].reverse().find((o) => o.role === "user");
+      parts.forEach((part) => {
+        part.text = part.text.replace(/\[\[react:\s*([^\]\s]{1,8})\s*\]\]\s*/g, (_m, e: string) => { if (lastUser) botReacts[lastUser.key] = e; return ""; });
+      });
       parts.forEach((part, partIndex) => {
         const speaker = group && part.speaker ? agents.find((a) => group.memberIds.includes(a.id) && a.name === part.speaker) : undefined;
         out.push({ key: `${turn.id}-${partIndex}`, turnId: turn.id, role: "agent", text: part.text, at: lastAt, speaker: speaker || agent, turn, partIndex, lastPart: partIndex === parts.length - 1, turnIndex });
@@ -408,8 +443,11 @@ export function HubChat({
   const react = (key: string, emoji: string) => {
     setReactions((cur) => {
       const next = { ...cur };
-      if (next[key] === emoji) delete next[key]; else next[key] = emoji;
+      const adding = next[key] !== emoji;
+      if (adding) next[key] = emoji; else delete next[key];
       writeReactions(next);
+      const target = bubbles.find((x) => x.key === key);
+      if (adding && target?.role === "agent" && !demo && !s.running) window.setTimeout(() => s.send(`[reacted ${emoji} to: "${target.text.replace(/\s+/g, " ").slice(0, 120)}"]`), 0);
       return next;
     });
     setSheet(null);
@@ -489,7 +527,7 @@ export function HubChat({
               const voiceReply = b.role === "agent" && prefersVoiceReply(input?.turn.voiceOrigin, b.text) && !b.turn.running && !b.turn.error && !b.turn.stopped;
               const speaker = b.speaker || agent;
               const settings = speaker.voiceSettings || voicePreferences[speaker.id] || voiceSettings;
-              const reaction = reactions[b.key];
+              const reaction = reactions[b.key] || botReacts[b.key];
               const time = fmtTime(b.at);
               return (
                 <div key={b.key} id={`cx-${b.key}`} className="cx-row-wrap">
@@ -497,7 +535,8 @@ export function HubChat({
                   {b.role === "user" ? (
                     <div className="cx-row cx-row-user">
                       <div className="cx-bubble cx-bubble-user" data-hit={hit} data-select={selectable === b.key} dir="auto" {...handlers}>
-                        {b.turn.voiceOrigin === "recording" && b.turn.recordingId ? <VoiceMessage own text={b.text} recordingId={b.turn.recordingId} agentId={agent.id} agentIds={agents.map((a) => a.id)} settings={voiceSettings} ar={ar} /> : b.text.startsWith("> ") ? (() => { const [quote, ...rest] = b.text.split("\n\n"); return <><span className="cx-quote">{quote.slice(2)}</span><Highlight text={rest.join("\n\n")} q={q} /></>; })() : <Highlight text={b.text} q={q} />}
+                        {b.partIndex === 0 && Array.isArray(b.turn.images) && b.turn.images.length > 0 && <span className="cx-user-images">{b.turn.images.map((src: string, k: number) => <img key={k} src={src} alt="" />)}</span>}
+                        {b.turn.voiceOrigin === "recording" && b.turn.recordingId ? <VoiceMessage own text={b.text} recordingId={b.turn.recordingId} agentId={agent.id} agentIds={agents.map((a) => a.id)} settings={voiceSettings} ar={ar} /> : b.text.startsWith("> ") ? (() => { const [quote, ...rest] = b.text.split("\n\n"); return <><span className="cx-quote">{quote.slice(2)}</span><Highlight text={rest.join("\n\n")} q={q} /></>; })() : <CollapsibleText text={b.text} ar={ar}><Highlight text={b.text} q={q} /></CollapsibleText>}
                         {reaction && <em className="cx-reaction">{reaction}</em>}
                       </div>
                       <span className="cx-time">{time}</span>
@@ -524,9 +563,10 @@ export function HubChat({
                           if (card.kind === "question") return <ChoiceCard key={card.id} question={card.question} options={card.options} allowFreeText={card.allowFreeText} answered={card.answered} ar={ar} onAnswer={(v) => s.send(v)} />;
                           if (card.kind === "widget") {
                             const d = (card.data || {}) as Record<string, any>;
-                            if (card.name === "connect_app") return <ConnectAppsCard key={card.id} apps={readConnectApps(d)} title={d.title || d.question} ar={ar} onAuthorize={(app) => nav(`/settings/apps/${encodeURIComponent(app.id || app.name.toLowerCase())}`)} />;
+                            if (card.name === "connect_app") return <ConnectAppsCard key={card.id} apps={readConnectApps(d)} title={d.title || d.question} ar={ar} onAuthorize={(app) => void connectInline(app)} />;
+                            if (card.name === "wallet_balance") return <WalletBalanceCard key={card.id} data={d} ar={ar} />;
                             if (card.name === "wallet_approval") return <WalletApprovalCard key={card.id} data={d} />;
-                            if (card.name === "integration_approval") return <IntegrationApprovalCard key={card.id} data={d} onDone={() => window.dispatchEvent(new Event("ceyo-action-completed"))} />;
+                            if (card.name === "integration_approval") return <IntegrationApprovalCard key={card.id} data={d} ar={ar} onDone={() => window.dispatchEvent(new Event("ceyo-action-completed"))} onApproved={(msg) => { void s.send(msg); }} />;
                             if (card.name === "secret" || card.name === "api_key") return <SecretCard key={card.id} name={String(d.name || d.title || "API key")} ar={ar} onOpen={() => nav("/settings/vault")} />;
                             if (card.name === "question" || card.name === "option_picker") {
                               const opts = (Array.isArray(d.options) ? d.options : Array.isArray(d.choices) ? d.choices : []).map((o: any) => typeof o === "string" ? o : String(o?.label ?? o?.name ?? o?.title ?? "")).filter(Boolean);
@@ -545,16 +585,12 @@ export function HubChat({
             })}
             {!demo && s.requests.map((r) => (
               r.kind === "connect_app"
-                ? <ConnectAppsCard key={r.id} title={r.question} apps={readConnectApps({ apps: r.options?.length ? r.options.map((o) => ({ id: o.id, name: o.label, description: o.description })) : [r.subject || r.question] })} ar={ar} onAuthorize={() => nav("/settings/apps")} />
+                ? <ConnectAppsCard key={r.id} title={r.question} apps={readConnectApps({ apps: r.options?.length ? r.options.map((o) => ({ id: o.id, name: o.label, description: o.description })) : [r.subject || r.question] })} ar={ar} onAuthorize={(app) => void connectInline(app)} />
                 : <ChoiceCard key={r.id} question={r.question} options={r.options?.length ? r.options.map((o) => o.label) : r.kind === "approval" ? [ar ? "موافق" : "Approve", ar ? "لأ" : "Don't"] : []} allowFreeText={r.allow_free_text || r.kind === "question"} ar={ar} onAnswer={(v) => { s.setRequests((rs) => rs.filter((x) => x.id !== r.id)); s.send(v); }} />
             ))}
             {activity.slice(0, 1).map(({ bot, state }) => {
-              const pool = state === "tool"
-                ? (ar ? ["شغال على الطلب", "بجهّز الأدوات", "بنفّذ الخطوة", "قربت أخلص"] : ["Working on it", "Getting things ready", "Running the step", "Almost there"])
-                : state === "talking"
-                ? (ar ? ["بيكتب", "بيرتب الرد", "بيكمل الكتابة"] : ["Writing", "Shaping the reply", "Still writing"])
-                : (ar ? ["بيفكر في الموضوع", "بيحلل طلبك", "بيرتب أفكاره", "لحظة كمان"] : ["Thinking it through", "Reading your request", "Organizing ideas", "One more moment"]);
-              const label = pool[tick % pool.length];
+              const lastUserText = [...s.turns].reverse().find((t) => t.type === "user")?.text || "";
+              const label = workingLabel(lastAgent?.steps || [], state, tick, /[\u0600-\u06FF]/.test(lastUserText) || (!lastUserText && ar));
               const others = group ? Math.max(0, group.memberIds.filter((id) => id !== bot.id).length) : 0;
               return (
                 <div className="cx-working" key="working">
@@ -589,7 +625,7 @@ export function HubChat({
           queue={s.queue}
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
-          onSend={(text, origin) => { setPinned(true); setSelectable(null); if (!sessionId && !demo) void startConversation(text, origin); else s.send(text, [], origin); }}
+          onSend={(text, origin, images) => { setPinned(true); setSelectable(null); if (!sessionId && !demo) void startConversation(text, origin, images); else s.send(text, images || [], origin); }}
           onStop={s.stop}
           onUnqueue={s.unqueue}
           onNew={() => onSession(null)}
@@ -637,4 +673,73 @@ function mentionify(children: ReactNode, group: AgentGroup | undefined, agents: 
     return node;
   };
   return walk(children);
+}
+
+/** Shrinks a picked photo to a small JPEG data URL so it can travel with the message. */
+function imageToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext("2d")?.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`${file.name}: could not read this image`)); };
+    img.src = url;
+  });
+}
+
+function ThumbImage({ file }: { file: File }) {
+  const [src, setSrc] = useState("");
+  useEffect(() => { const u = URL.createObjectURL(file); setSrc(u); return () => URL.revokeObjectURL(u); }, [file]);
+  return src ? <img src={src} alt={file.name} /> : null;
+}
+
+/** Very long user messages collapse to one line with a "Show more" link. */
+export function CollapsibleText({ text, ar, children }: { text: string; ar: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  if (text.length < 400 || open) return <>{children}</>;
+  return <span className="cx-collapsed"><span className="cx-collapsed-line" dir="auto">{text.replace(/\s+/g, " ").slice(0, 160)}</span><button type="button" className="cx-more" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>{ar ? "عرض المزيد" : "Show more"}</button></span>;
+}
+
+const STEP_WORDS: Record<string, [string, string]> = {
+  search: ["Searching the web", "بدوّر على النت"],
+  read: ["Reading the page", "بقرا الصفحة"],
+  browse: ["Opening the website", "بفتح الموقع"],
+  image: ["Making the image", "بعمل الصورة"],
+  video: ["Making the video", "بعمل الفيديو"],
+  helper: ["Asking a teammate", "بسأل زميل"],
+  command: ["Running it on the computer", "بشغّلها على الكمبيوتر"],
+  python: ["Running it on the computer", "بشغّلها على الكمبيوتر"],
+  code: ["Writing code", "بكتب الكود"],
+  edit: ["Editing the file", "بعدّل الملف"],
+  file: ["Preparing your file", "بجهّز الملف"],
+  memory: ["Checking what I remember", "بفتكر اللي أعرفه عنك"],
+  email: ["Working in your email", "شغال على الإيميل"],
+  calendar: ["Checking your calendar", "بشوف الكالندر"],
+  map: ["Looking at the map", "بشوف الخريطة"],
+  data: ["Crunching the numbers", "بحسب الأرقام"],
+  task: ["Setting up the task", "بجهّز المهمة"],
+  plan: ["Planning the steps", "برتب الخطوات"],
+  ask: ["Preparing a question", "بجهّز سؤال ليك"],
+};
+
+/** Status line under the avatar: follows what the bot is really doing, in the user's language. */
+function workingLabel(steps: { kind: string; label: string; status: string }[], state: string, tick: number, ar: boolean) {
+  const active = [...steps].reverse().find((st) => st.status === "active");
+  if (active) {
+    const w = STEP_WORDS[active.kind];
+    if (w) return ar ? w[1] : w[0];
+    if (active.label && !ar) return active.label;
+    return ar ? "بنفّذ الخطوة" : "Working on it";
+  }
+  if (state === "talking") return ar ? "بكتب الرد" : "Writing the reply";
+  const done = steps.filter((st) => st.status === "done").length;
+  if (done) return ar ? `خلصت ${done} ${done === 1 ? "خطوة" : "خطوات"}، بكمل` : `${done} step${done === 1 ? "" : "s"} done, continuing`;
+  const pool = ar ? ["بفكر في طلبك", "بفهم المطلوب"] : ["Thinking it through", "Understanding your request"];
+  return pool[Math.floor(tick / 3) % pool.length];
 }
