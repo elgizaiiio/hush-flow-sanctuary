@@ -26,8 +26,8 @@ export const CEREBRAS_BASE = "https://api.cerebras.ai/v1";
 
 /** The only two models Cerebras serves on shared inference. */
 export const CEREBRAS_MODELS = {
-  /** Cheapest, widest context, highest limits — the default for every turn. */
-  text: "gpt-oss-120b",
+  /** Default for every text/agent turn (owner chose Qwen over gpt-oss for answer quality). */
+  text: "qwen-3.8-27b",
   /** The only one that accepts images. */
   vision: "qwen-3.8-27b",
 } as const;

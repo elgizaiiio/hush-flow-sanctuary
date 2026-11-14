@@ -1,3 +1,4 @@
+import { CEREBRAS_MODELS } from "@/lib/keys/cerebrasKey";
 import { getCerebrasKeys, markCerebrasFailure, markCerebrasUse, type CerebrasKey } from "@/lib/keys/cerebrasKey";
 import { canUseAuthorizedBackup, classifyProviderFailure } from "./providerFailover";
 import { getProviderKey } from "@/lib/keys/providerKey";
@@ -12,7 +13,7 @@ import { fileEditorScript } from "./fileEditor";
 /** @doc Bot reply loop: Cerebras streams the answer and may call web tools (Browserbase) several times before it finishes. */
 const CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions";
 /** Cheapest + fastest model on Cerebras. */
-const MODEL = "gpt-oss-120b";
+const MODEL = CEREBRAS_MODELS.text;
 const MAX_STEPS = 16;
 
 export type LoopEvent = Record<string, unknown> & { id: string; type: string };
@@ -232,6 +233,8 @@ export async function runAgentLoop(
         }
       }
     }
+    // Qwen sends whitespace-only content alongside tool calls; drop it so answers have no blank gaps.
+    text = text.trim();
     const flush = () => { if (text) emit({ id: `${sid}-t${n++}`, type: "agent.message", parts: [{ type: "text", text, stream_id: `${sid}-t` }] }); };
     answer += (answer && text ? "\n\n" : "") + text;
     const real = calls.filter(Boolean);

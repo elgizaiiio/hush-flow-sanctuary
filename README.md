@@ -285,6 +285,10 @@ bunx vitest run
 انظر `roadmap.md` لحالة الطلب الحالي؛ الأقسام التاريخية فيه ليست قائمة حقائق حديثة وقد تتعارض بسبب نقل المساحات والخدمات.
 
 ## Current work
+### Agent model → Qwen — 2026-11-14
+- Text/agent turns now use Cerebras `qwen-3.8-27b` via `CEREBRAS_MODELS.text` (the only Qwen id on the key); new bots default to it; whitespace-only step text is trimmed. Voice calls stay on gpt-oss-120b for latency.
+- Verification: 17 agent test files / 71 tests pass; live loop runs: AI news (web_search + read_url), USD/EGP + Alexandria weather (search + read pages), primes script (file_editor + run_code) — all real tool calls, 3–21 s. Not checked through the signed-in chat screen.
+
 ### Everyday-user agent behavior — 2026-11-14
 - Prompt rewritten into clear sections (how to talk / how to work / tools / rules): plain words, no tool names or jargon, never ask for IDs the agent can find, defaults over questions, finish every plan step. Agent turns use `reasoning_effort: "medium"`.
 - Loop: step text is held until the step ends; a reply that asks the user for technical IDs/code is retried once; blocked anti-bot pages get a switch-source note; near the step limit the agent is told to wrap up and the last step is tool-free, so big tasks deliver instead of failing; null optional tool args are dropped; browser errors now carry the real cause; rate-limit waits up to 4 minutes per request.

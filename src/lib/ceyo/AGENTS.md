@@ -7,3 +7,4 @@
 - Agent-published web pages are agent_documents rows served by /api/public/site/$siteId with a CSP sandbox header. Why: user-generated HTML gets a live link without reading the app's session or storage.
 - Hosted Telegram bots save every received update to the owner-only telegram_inbox (30-day retention); personal Telegram Business chats are answered only when business_reply is on. Why: the agent reads the user's messages without storing the bot token or replying on their behalf uninvited.
 - Agent turns end with a tool-free final step and a wrap-up note near the step budget; blocked-site reads get a switch-source note. Why: big tasks must deliver a result instead of failing at the limit or trusting anti-bot pages.
+- Text and agent turns read the model id from CEREBRAS_MODELS.text (never hardcode it in the loop or bot defaults) and trim whitespace-only step text. Why: one switch changes the model everywhere, and Qwen emits blank content beside tool calls.

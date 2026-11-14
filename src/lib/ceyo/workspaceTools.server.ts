@@ -98,7 +98,7 @@ export function workspaceTools(ctx: Context): AgentTool[] {
     add("create_team", "Create a complete work group in one step: its specialist members and the group itself. Use this whenever the user asks for a team or group; never create the members separately first.", { name: str, category: str, members: { type: "array", minItems: 2, maxItems: 8, items: { type: "object", properties: { name: { type: "string", description: "Short job title in the user's language, e.g. Researcher, Writer, Editor. Never contains the word bot." }, description: str, instructions: str, color: { type: "string", enum: ["aurora", "ocean", "ember", "mint", "sun", "rose", "mono"] } }, required: ["name", "instructions"] } } }, ["name", "members"], async (args) => {
       const input = teamInput.parse(args);
       const palette = ["ocean", "ember", "mint", "sun", "aurora", "mono", "rose"] as const;
-      const created = checked(await db.from("bots").insert(input.members.map((m, i) => ({ owner_id: userId, name: m.name, description: m.description, instructions: m.instructions, model: "gpt-oss-120b", look: { color: m.color || palette[i % palette.length] } }))).select("id,name,description"));
+      const created = checked(await db.from("bots").insert(input.members.map((m, i) => ({ owner_id: userId, name: m.name, description: m.description, instructions: m.instructions, model: "qwen-3.8-27b", look: { color: m.color || palette[i % palette.length] } }))).select("id,name,description"));
       const ids = created.map((b: any) => b.id);
       const cleanup = async (extra: string[] = []) => { await db.from("bots").delete().in("id", [...ids, ...extra]).eq("owner_id", userId); };
       const coordinator = await db.from("bots").insert({ owner_id: userId, name: input.name, description: `${created.length} coordinated members`, instructions: `Coordinate the group ${input.name}. Delegate actual work, never impersonate members. Members: ${JSON.stringify(created)}`, look: { color: "rose" } }).select("id").single();
@@ -109,7 +109,7 @@ export function workspaceTools(ctx: Context): AgentTool[] {
     });
     add("create_bot", "Create one real specialist bot (not for teams; use create_team for groups). Name it after its job, never with the word bot.", { name: str, description: str, instructions: str, color: { type: "string", enum: ["aurora", "ocean", "ember", "mint", "sun", "rose", "mono"] } }, ["name", "instructions"], async (args) => {
       const input = botInput.parse(args);
-      return JSON.stringify(checked(await db.from("bots").insert({ owner_id: userId, name: input.name, description: input.description, instructions: input.instructions, model: "gpt-oss-120b", look: { color: input.color } }).select("id,name,description").single()));
+      return JSON.stringify(checked(await db.from("bots").insert({ owner_id: userId, name: input.name, description: input.description, instructions: input.instructions, model: "qwen-3.8-27b", look: { color: input.color } }).select("id,name,description").single()));
     });
     add("assign_bot_role", "Update a user's bot's role and specialization; do not modify the primary bot.", { bot_id: str, instructions: str, description: str }, ["bot_id", "instructions"], async (args) => {
       const input = z.object({ bot_id: z.string().uuid(), instructions: z.string().min(1).max(6000), description: z.string().max(500).optional() }).parse(args);
