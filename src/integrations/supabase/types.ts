@@ -1524,6 +1524,56 @@ export type Database = {
           },
         ]
       }
+      telegram_inbox: {
+        Row: {
+          chat_id: number | null
+          chat_title: string | null
+          created_at: string
+          doc_id: string
+          from_name: string | null
+          id: string
+          kind: string
+          outgoing: boolean
+          text: string | null
+          update_id: number
+          user_id: string
+        }
+        Insert: {
+          chat_id?: number | null
+          chat_title?: string | null
+          created_at?: string
+          doc_id: string
+          from_name?: string | null
+          id?: string
+          kind: string
+          outgoing?: boolean
+          text?: string | null
+          update_id: number
+          user_id: string
+        }
+        Update: {
+          chat_id?: number | null
+          chat_title?: string | null
+          created_at?: string
+          doc_id?: string
+          from_name?: string | null
+          id?: string
+          kind?: string
+          outgoing?: boolean
+          text?: string | null
+          update_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_inbox_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "agent_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       telephony_settings: {
         Row: {
           key: string

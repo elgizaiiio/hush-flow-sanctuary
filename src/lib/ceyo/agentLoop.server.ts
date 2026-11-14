@@ -7,7 +7,7 @@ import { normalizeLanguage } from "@/lib/computer/execution";
 import { createBotBrowser } from "@/lib/computer/browser.server";
 import { promoVideoScript } from "@/lib/computer/promoVideo";
 import { exportArtifact } from "@/lib/computer/artifacts.server";
-import { compactMessages, createFailureTracker, looksLikeFakeToolCall, looksLikeRefusal, PLANNING_RULES } from "./selfHealing";
+import { compactMessages, createFailureTracker, looksLikeFakeToolCall, looksLikeRefusal, looksLikeTechnicalAsk, blockedPageNote, PLANNING_RULES } from "./selfHealing";
 import { fileEditorScript } from "./fileEditor";
 /** @doc Bot reply loop: Cerebras streams the answer and may call web tools (Browserbase) several times before it finishes. */
 const CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions";
@@ -114,7 +114,7 @@ const sleep = (ms: number, signal: AbortSignal) => new Promise<void>((resolve, r
  * (CEREBRAS_API_KEY may hold several, comma separated) and otherwise waits the
  * provider's Retry-After before trying again, so the reply continues instead of failing.
  */
-export async function cerebrasRequest(keys: (string | CerebrasKey)[], body: string, signal: AbortSignal, maxWaitMs = 90_000, authorizedBackup = process.env.CEREBRAS_INDEPENDENT_BACKUP_ALLOWED === "true"): Promise<Response> {
+export async function cerebrasRequest(keys: (string | CerebrasKey)[], body: string, signal: AbortSignal, maxWaitMs = 240_000, authorizedBackup = process.env.CEREBRAS_INDEPENDENT_BACKUP_ALLOWED === "true"): Promise<Response> {
   if (!keys.length) throw new Error("AI is not configured");
   let keyCursor = 0;
   let waited = 0;
@@ -177,6 +177,7 @@ export async function runAgentLoop(
   let answer = "";
   let fakeToolNudges = 0;
   let refusalNudged = false;
+  let techAskNudged = false;
   let toolsUsed = 0;
   const turn = crypto.randomUUID().slice(0, 8);
   const usageRun = crypto.randomUUID();
@@ -186,11 +187,15 @@ export async function runAgentLoop(
     signal.throwIfAborted();
     // Refresh after user steering; append after specialization and saved context.
     compactMessages(messages);
-    messages[0] = { role: "system", content: `${system}\n\n${PLANNING_RULES}${plan.length ? `\nCurrent plan:\n${plan.join("\n")}` : ""}\n\n${replyLanguageInstruction(messages)}` };
+    const left = maxSteps - step;
+    // Near the step budget: stop exploring and deliver; the last step has no tools, so a real answer always arrives.
+    const budget = left <= 1 ? "\n\nThis is your LAST step: no more tools. Give the final answer now with everything you found, clearly marking estimates and anything unfinished." : left <= 4 ? `\n\nOnly ${left} steps left: stop researching, finish the deliverable with what you have now (estimates allowed, say so) and answer.` : "";
+    messages[0] = { role: "system", content: `${system}\n\n${PLANNING_RULES}${plan.length ? `\nCurrent plan:\n${plan.join("\n")}` : ""}${budget}\n\n${replyLanguageInstruction(messages)}` };
+    const stepTools = left <= 1 ? [] : allTools;
     if (opts.usageOwner) await (await import("./usage.server")).chargeUsage(opts.usageOwner, `${usageRun}:${step}`);
     const res = opts.chatModel
-      ? await (await import("./chatModel.server")).chatModelResponse(messages, allTools, signal)
-      : await cerebrasRequest(keys, JSON.stringify({ model: MODEL, messages, tools: allTools, stream: true, reasoning_effort: "low" }), signal);
+      ? await (await import("./chatModel.server")).chatModelResponse(messages, stepTools, signal)
+      : await cerebrasRequest(keys, JSON.stringify({ model: MODEL, messages, ...(stepTools.length ? { tools: stepTools } : {}), stream: true, reasoning_effort: "medium" }), signal);
     if (!res.ok || !res.body) throw new Error(`AI error ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const reader = res.body.getReader();
     const dec = new TextDecoder();
@@ -216,10 +221,8 @@ export async function runAgentLoop(
         const d = j.choices?.[0]?.delta ?? {};
         if (d.refusal) throw new Error(d.refusal);
         if (d.reasoning) emit({ id: `${sid}-r${n++}`, type: "agent.reasoning", part: { type: "reasoning", text: d.reasoning, stream_id: `${sid}-r` } });
-        if (d.content) {
-          text += d.content;
-          emit({ id: `${sid}-t${n++}`, type: "agent.message", parts: [{ type: "text", text: d.content, stream_id: `${sid}-t` }] });
-        }
+        // Text is held until the step ends (Cerebras is fast) so a refusal or fake tool call can be retried unseen.
+        if (d.content) text += d.content;
         for (const tc of d.tool_calls ?? []) {
           const k = tc.index ?? 0;
           calls[k] ??= { id: tc.id || `${sid}-c${k}`, name: "", args: "" };
@@ -229,10 +232,19 @@ export async function runAgentLoop(
         }
       }
     }
+    const flush = () => { if (text) emit({ id: `${sid}-t${n++}`, type: "agent.message", parts: [{ type: "text", text, stream_id: `${sid}-t` }] }); };
     answer += (answer && text ? "\n\n" : "") + text;
     const real = calls.filter(Boolean);
     const steer = await poll();
     if (!real.length) {
+      if (!steer.length && !techAskNudged && looksLikeTechnicalAsk(text)) {
+        // Asking an everyday user for IDs, code or API steps: find it out with tools instead.
+        techAskNudged = true;
+        answer = answer.slice(0, answer.length - text.length).trimEnd();
+        messages.push({ role: "assistant", content: text });
+        messages.push({ role: "user", content: "I'm not technical — don't ask me for IDs, API details or code steps. Find what you need yourself with your tools (read_telegram_messages, telegram_bot getMe/getUpdates, web_search, browser, run_code, http_request, list_connected_accounts) and do the task. If something truly needs me, tell me in 1-3 simple steps using the app's button names, in my language, no technical words." });
+        continue;
+      }
       if (!steer.length && fakeToolNudges < 2 && looksLikeFakeToolCall(text, allTools.map((t: any) => t?.function?.name).filter(Boolean))) {
         // The model wrote a tool call as plain text; make it call the real tool.
         fakeToolNudges++;
@@ -249,6 +261,7 @@ export async function runAgentLoop(
         messages.push({ role: "user", content: "Don't decline or hand me manual steps. Do it yourself now with your tools (run_code, http_request, browser, web_search, file_editor, connected apps, host_telegram_bot). Only if it is unsafe, illegal or truly needs me (sign-in, QR, payment, approval) say so in one sentence." });
         continue;
       }
+      flush();
       if (!steer.length) {
         if (!text.trim()) throw new Error("The agent did not complete an answer. No success was recorded.");
         return answer;
@@ -257,6 +270,7 @@ export async function runAgentLoop(
       for (const t of steer) messages.push({ role: "user", content: t });
       continue;
     }
+    flush();
     messages.push({
       role: "assistant",
       content: text || null,
@@ -282,7 +296,8 @@ export async function runAgentLoop(
       try { const extra = extras.find((extra) => extra.name === c.name); result = extra ? await extra.run(args) : await runTool(c.name, args, computer); } catch (e) { result = e instanceof Error ? e.message : "Tool failed"; status = "error"; }
       emit({ id: `${c.id}-res`, type: "agent.tool_result", part: { type: "tool_result", call_id: c.id, tool_name: c.name, status, result: result.slice(0, 30000) } });
       const check = failures.record(c.name, args, status === "ok");
-      messages.push({ role: "tool", tool_call_id: c.id, content: check.note ? `${result}\n\n${check.note}` : result });
+      const blocked = status === "ok" ? blockedPageNote(result) : null;
+      messages.push({ role: "tool", tool_call_id: c.id, content: [result, blocked, check.note].filter(Boolean).join("\n\n") });
       if (status === "ok" && c.name === "browser" && args.action === "login") {
         const login = JSON.parse(result);
         const handoff = `Open [the bot's sign-in browser](${login.url}) and sign in yourself, then come back when you're done. The link is private and temporary. Never send your password in the chat.`;

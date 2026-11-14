@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { HOOK_PATH, HOSTED_BOT_MIME, hostedBotConfig, hostedBotSecret, publicHookOrigin } from "./telegramHosting";
+import { HOOK_PATH, HOSTED_BOT_MIME, HOSTED_UPDATES, hostedBotConfig, hostedBotSecret, publicHookOrigin } from "./telegramHosting";
 import { publicBrowserUrl } from "@/lib/computer/browserRules";
 import type { AgentTool } from "./toolSchemas";
 import { tool } from "./toolSchemas";
@@ -67,12 +67,12 @@ export function extraTools(ctx?: { db: SupabaseClient; userId: string; origin?: 
       return j.result;
     };
     const tokenSchema = z.string().regex(/^\d+:[A-Za-z0-9_-]{20,}$/, "Invalid bot token");
-    add("host_telegram_bot", "Run the user's Telegram bot 24/7 on Ceyo's server (no routine, no user server). mode 'ai_chat' answers every message with AI using persona; 'auto_reply' sends fixed replies. Always set start_text (the /start welcome). Re-run to change texts. It self-tests and returns the bot link: give the user https://t.me/<username> and tell them to press Start — never ask for chat_id.", { token: str, mode: { type: "string", enum: ["ai_chat", "auto_reply"] }, start_text: str, persona: { type: "string", description: "Who the bot is and how it answers (ai_chat)" }, default_reply: { type: "string", description: "Reply for other messages (auto_reply) or when AI is unavailable" }, commands: { type: "array", items: { type: "object", properties: { command: str, description: str, reply: str }, required: ["command", "description"] } } }, ["token", "start_text"], async (args) => {
-      const input = z.object({ token: tokenSchema, mode: z.enum(["ai_chat", "auto_reply"]).default("ai_chat"), start_text: z.string().min(1).max(4000), persona: z.string().max(4000).optional(), default_reply: z.string().max(4000).optional(), commands: z.array(z.object({ command: z.string().transform((c) => c.replace(/^\//, "").toLowerCase()), description: z.string().min(1).max(256), reply: z.string().max(4000).optional() })).max(30).optional() }).parse(args);
+    add("host_telegram_bot", "Run the user's Telegram bot 24/7 on Ceyo's server (no routine, no user server). mode 'ai_chat' answers every message with AI using persona; 'auto_reply' sends fixed replies. Always set start_text (the /start welcome). Re-run to change texts. Everything the bot receives (its own chats, groups/channels where it is admin, and the user's personal chats once they link it to their account via Telegram Business) is saved for read_telegram_messages. business_reply=true lets it answer people in the user's personal chats — only when the user asked for that. It self-tests and returns the bot link: give the user https://t.me/<username> and tell them to press Start — never ask for chat_id.", { business_reply: { type: "boolean", description: "Answer people in the user's personal chats (Telegram Business). Default false = only read them." }, token: str, mode: { type: "string", enum: ["ai_chat", "auto_reply"] }, start_text: str, persona: { type: "string", description: "Who the bot is and how it answers (ai_chat)" }, default_reply: { type: "string", description: "Reply for other messages (auto_reply) or when AI is unavailable" }, commands: { type: "array", items: { type: "object", properties: { command: str, description: str, reply: str }, required: ["command", "description"] } } }, ["token", "start_text"], async (args) => {
+      const input = z.object({ token: tokenSchema, mode: z.enum(["ai_chat", "auto_reply"]).default("ai_chat"), start_text: z.string().min(1).max(4000), persona: z.string().max(4000).optional(), default_reply: z.string().max(4000).optional(), commands: z.array(z.object({ command: z.string().transform((c) => c.replace(/^\//, "").toLowerCase()), description: z.string().min(1).max(256), reply: z.string().max(4000).optional() })).max(30).optional(), business_reply: z.boolean().default(false) }).parse(args);
       const secret = process.env.LOVABLE_CRON_SECRET;
       if (!secret) throw new Error("Bot hosting is not configured on this server");
       const me = (await tg(input.token, "getMe")) as { id: number; username: string; first_name?: string };
-      const cfg = hostedBotConfig.parse({ v: 1, bot_id: me.id, username: me.username, mode: input.mode, start_text: input.start_text, persona: input.persona, default_reply: input.default_reply, commands: (input.commands || []).filter((c) => c.command !== "start") });
+      const cfg = hostedBotConfig.parse({ v: 1, bot_id: me.id, username: me.username, mode: input.mode, start_text: input.start_text, persona: input.persona, default_reply: input.default_reply, business_reply: input.business_reply, commands: (input.commands || []).filter((c) => c.command !== "start") });
       const name = `telegram-bot:${me.id}`;
       const { data: existing, error: findError } = await ctx.db.from("agent_documents").select("id").eq("user_id", ctx.userId).eq("name", name).eq("mime", HOSTED_BOT_MIME).maybeSingle();
       if (findError) throw new Error(findError.message);
@@ -88,7 +88,7 @@ export function extraTools(ctx?: { db: SupabaseClient; userId: string; origin?: 
       const origin = publicHookOrigin(ctx.origin || "http://localhost", process.env.APP_URL || "https://project--31d71057-3c67-417c-ae8b-2c7341705a52-dev.lovable.app");
       const url = `${origin}${HOOK_PATH}${docId}`;
       const secretToken = await hostedBotSecret(secret, docId!);
-      await tg(input.token, "setWebhook", { url, secret_token: secretToken, allowed_updates: ["message"], drop_pending_updates: false });
+      await tg(input.token, "setWebhook", { url, secret_token: secretToken, allowed_updates: HOSTED_UPDATES, drop_pending_updates: false });
       await tg(input.token, "setMyCommands", { commands: [{ command: "start", description: "Start" }, ...cfg.commands.map(({ command, description }) => ({ command, description }))] });
       // Self-test: send our own webhook a fake /start and check that it answers.
       let selfTest = "not run";
@@ -98,7 +98,23 @@ export function extraTools(ctx?: { db: SupabaseClient; userId: string; origin?: 
         selfTest = r.ok && j?.method === "sendMessage" && j.text === cfg.start_text ? "passed" : `failed (HTTP ${r.status})`;
       } catch (error) { selfTest = `failed (${error instanceof Error ? error.message : "unreachable"})`; }
       const info = (await tg(input.token, "getWebhookInfo")) as { url?: string; pending_update_count?: number; last_error_message?: string };
-      return JSON.stringify({ hosted: info.url === url, self_test: selfTest, bot: `@${me.username}`, link: `https://t.me/${me.username}`, mode: cfg.mode, pending_messages: info.pending_update_count ?? 0, last_error: info.last_error_message || null, note: "Runs 24/7 on Ceyo's server. Tell the user to open the link and press Start; the bot cannot message them first." });
+      return JSON.stringify({ hosted: info.url === url, self_test: selfTest, bot: `@${me.username}`, link: `https://t.me/${me.username}`, mode: cfg.mode, pending_messages: info.pending_update_count ?? 0, last_error: info.last_error_message || null, note: "Runs 24/7 on Ceyo's server. Tell the user to open the link and press Start; the bot cannot message them first. To let you read their personal chats: Telegram app → Settings → Telegram Business → Chatbots → add @" + me.username + " (needs Telegram Premium). To read a group/channel: add the bot there as admin. Then use read_telegram_messages." });
+    });
+    add("read_telegram_messages", "Read messages that reached the user's hosted Telegram bots: their personal chats (after linking the bot in Telegram → Settings → Telegram Business → Chatbots), groups/channels where the bot is admin, and chats with the bot. Only messages that arrived after the bot was hosted and linked exist; Telegram never gives bots older history. Summarize for the user in plain words.", { bot: { type: "string", description: "Bot username; omit for all bots" }, kind: { type: "string", enum: ["all", "business", "private", "group", "channel"] }, search: str, limit: { type: "number" } }, [], async (args) => {
+      const input = z.object({ bot: z.string().max(64).optional(), kind: z.enum(["all", "business", "private", "group", "channel"]).default("all"), search: z.string().max(200).optional(), limit: z.number().int().min(1).max(200).default(50) }).parse(args);
+      const { data: bots, error: botError } = await ctx.db.from("agent_documents").select("id,content").eq("user_id", ctx.userId).eq("mime", HOSTED_BOT_MIME);
+      if (botError) throw new Error(botError.message);
+      const hosted = (bots || []).map((b) => ({ id: b.id as string, cfg: hostedBotConfig.safeParse(JSON.parse((b.content as string) || "{}")) })).filter((b) => b.cfg.success).map((b) => ({ id: b.id, username: b.cfg.data!.username }));
+      const wanted = input.bot ? hosted.filter((b) => b.username.toLowerCase() === input.bot!.replace(/^@/, "").toLowerCase()) : hosted;
+      if (!wanted.length) return JSON.stringify({ messages: [], note: hosted.length ? "That bot is not hosted; hosted bots: " + hosted.map((b) => "@" + b.username).join(", ") : "No hosted bot yet. Ask for the bot token (from @BotFather) and call host_telegram_bot first." });
+      let q = ctx.db.from("telegram_inbox").select("kind,chat_title,from_name,outgoing,text,created_at,doc_id").eq("user_id", ctx.userId).in("doc_id", wanted.map((b) => b.id)).order("created_at", { ascending: false }).limit(input.limit);
+      if (input.kind !== "all") q = q.eq("kind", input.kind);
+      if (input.search) q = q.ilike("text", `%${input.search.replace(/[%_\\]/g, "")}%`);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      const names = new Map(wanted.map((b) => [b.id, "@" + b.username]));
+      const linked = (data || []).some((m) => m.kind === "business_connection" || m.kind === "business");
+      return JSON.stringify({ messages: (data || []).reverse().map((m) => ({ bot: names.get(m.doc_id as string), where: m.kind, chat: m.chat_title, from: m.outgoing ? "the user (you)" : m.from_name, text: m.text, at: m.created_at })), note: data?.length ? undefined : linked ? "No new messages yet." : "Nothing received yet. If the user wants their personal chats read, tell them in simple words: open Telegram → Settings → Telegram Business → Chatbots → type the bot's username → allow it (needs Telegram Premium). Groups/channels: add the bot as admin. Only new messages from then on can be read." });
     });
     add("stop_telegram_bot", "Stop hosting a Telegram bot that host_telegram_bot started.", { token: str }, ["token"], async (args) => {
       const { token } = z.object({ token: tokenSchema }).parse(args);

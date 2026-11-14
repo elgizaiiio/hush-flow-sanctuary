@@ -19,7 +19,7 @@ export function createFailureTracker() {
 }
 
 /** Shrinks old tool outputs when the transcript grows, keeping the latest ones intact. */
-export function compactMessages(messages: Msg[], budget = 60_000, keepRecent = 6): Msg[] {
+export function compactMessages(messages: Msg[], budget = 40_000, keepRecent = 5): Msg[] {
   const size = () => messages.reduce((n, m) => n + (m.content?.length ?? 0), 0);
   if (size() <= budget) return messages;
   const toolIdx = messages.map((m, i) => (m.role === "tool" ? i : -1)).filter((i) => i >= 0);
@@ -31,7 +31,7 @@ export function compactMessages(messages: Msg[], budget = 60_000, keepRecent = 6
   return messages;
 }
 
-export const PLANNING_RULES = `Operating loop (OpenManus/Grok style): THINK which tool moves the task forward, ACT by calling it, OBSERVE the result, then decide the next step; repeat until the goal is done, then give the final answer. For goals needing several steps, first call update_plan with short numbered steps and mark them [x] as you finish. Tool choice: facts/news → web_search then read_url; any public API → http_request; computing, data, scraping, files, scripts → run_code (pip/npm install inside it); writing or fixing files on the computer → file_editor; websites that need clicking or a signed-in account → browser (look before click_at); Telegram bots → host_telegram_bot. When a tool fails, read the error, fix the cause and retry differently (other code, selector, source or tool); try at least two alternatives before reporting a blocker. Verify the outcome with a tool (re-read, re-run, getMe, look) before saying it is done. Never claim a step done without tool evidence. Final answer: the result itself, short, with links/files, and any part still unfinished.`;
+export const PLANNING_RULES = `Operating loop (OpenManus/Grok style): THINK which tool moves the task forward, ACT by calling it, OBSERVE the result, then decide the next step; repeat until the goal is done, then give the final answer. For goals needing several steps, first call update_plan with short numbered steps and mark them [x] as you finish. Tool choice: facts/news → web_search then read_url; any public API → http_request; computing, data, scraping, files, scripts → run_code (pip/npm install inside it); writing or fixing files on the computer → file_editor; websites that need clicking or a signed-in account → browser (look before click_at); Telegram bots → host_telegram_bot; the user's Telegram messages → read_telegram_messages. When a tool fails, read the error, fix the cause and retry differently (other code, selector, source or tool); try at least two alternatives before reporting a blocker. Verify the outcome with a tool (re-read, re-run, getMe, look) before saying it is done. Never claim a step done without tool evidence. Big tasks: break them into steps with update_plan, do every step yourself in this run (call as many tools as needed), and only stop when the whole goal is delivered or a real blocker needs the user; if it will take many minutes, use start_long_task. Missing details: pick sensible defaults and say which you picked; ask only what only the user can know (their choice, their sign-in, approval), as one short question. Final answer: the result itself, short, in plain everyday words, with links/files, and any part still unfinished.`;
 
 /** The model printed a tool call as text (JSON, XML or harmony syntax) instead of calling it. */
 export function looksLikeFakeToolCall(text: string, toolNames: readonly string[] = []): boolean {
@@ -45,4 +45,18 @@ export function looksLikeRefusal(text: string): boolean {
   const t = text.toLowerCase();
   return /\b(i can(?:'|no)t|i(?:'m| am) (?:unable|not able)|i don'?t have (?:access|the ability)|as an ai|you (?:can|will need to|need to|should) (?:run|install|deploy|open|go to))\b/.test(t)
     || /(لا أستطيع|لا استطيع|لا يمكنني|ما اقدرش|مقدرش|مش هقدر|معنديش صلاحية|ليس لدي (?:القدرة|صلاحية)|لا أملك (?:القدرة|صلاحية)|يمكنك (?:تشغيل|تثبيت|رفع)|عليك (?:تشغيل|تثبيت|رفع))/.test(text);
+}
+
+/** Asking an everyday user for technical identifiers, code or API steps the agent could find out itself. */
+export function looksLikeTechnicalAsk(text: string): boolean {
+  const jargon = /(`?\b(?:chat_id|user_id|channel_id|group_id|message_id|getupdates|webhook|endpoint|api key|json|curl|polling|bot api)\b`?)/i;
+  const ask = /\b(please (?:provide|share|send)|provide (?:me|the)|share (?:the|your)|send me (?:the|your)|i need (?:you to|the|your|either)|could you (?:give|share|send|provide)|let me know (?:the|your))\b|(أحتاج|احتاج|محتاج|برجاء|يرجى|من فضلك (?:ابعت|شارك|زود)|ابعتلي|ابعت لي|زودني|شاركني|شارك(?:ني)? ال|لو تقدر تزودني|توفّرت|توفرت)/i;
+  return jargon.test(text) && ask.test(text);
+}
+
+/** Anti-bot or error pages returned as "successful" reads; tell the agent to switch source instead of retrying. */
+export function blockedPageNote(result: string): string | null {
+  const head = result.slice(0, 1500);
+  if (!/(just a moment\.\.\.|attention required|access denied|you don'?t have permission to access|verify you are (?:a )?human|are you a robot|enable javascript and cookies|captcha|request blocked|403 forbidden|status 403)/i.test(head)) return null;
+  return "Note: this site blocked automated access (anti-bot page), so the content is NOT real. Don't retry the same site. Use another source: the search-result snippets you already have, a different shop/site, a price-comparison site, or the site's public API. Good-enough data with named sources beats no answer.";
 }

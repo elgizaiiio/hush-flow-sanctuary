@@ -498,3 +498,7 @@
 - [ ] Remove Arabic text from the app (app is English-only)
 - [ ] Clear, friendly error messages for users
 - [ ] Sign-in emails restyled to match the landing page
+
+## Agent quality — 2026-11-13
+- [ ] Read the user's Telegram messages: hosted bots save everything they receive (personal chats via Telegram Business, admin groups/channels) and the agent reads them with read_telegram_messages
+- [ ] Fix the agent's general behavior on any task (not just Telegram): no technical/manual answers for everyday users, never ask for IDs it can find itself, finish big multi-step tasks

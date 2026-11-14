@@ -35,3 +35,26 @@ describe("doer guards", () => {
     expect(looksLikeRefusal("Done — your bot replies to /start now.")).toBe(false);
   });
 });
+
+import { looksLikeTechnicalAsk } from "./selfHealing";
+describe("looksLikeTechnicalAsk", () => {
+  it("catches asking an everyday user for chat_id or API steps", () => {
+    expect(looksLikeTechnicalAsk("برجاء مشاركة الـ `chat_id` أو توضيح مكان وجود الرسائل")).toBe(true);
+    expect(looksLikeTechnicalAsk("Please provide the chat_id of the group so I can call getUpdates.")).toBe(true);
+  });
+  it("leaves normal answers and plain questions alone", () => {
+    expect(looksLikeTechnicalAsk("Here are your 5 newest messages.")).toBe(false);
+    expect(looksLikeTechnicalAsk("محتاج أعرف تحب الرد يكون رسمي ولا ودّي؟")).toBe(false);
+  });
+});
+
+import { blockedPageNote } from "./selfHealing";
+describe("blockedPageNote", () => {
+  it("flags anti-bot pages that came back as successful reads", () => {
+    expect(blockedPageNote("Just a moment... Enable JavaScript and cookies to continue")).not.toBeNull();
+    expect(blockedPageNote('{"text":"Access Denied\\nYou don\'t have permission to access"}')).not.toBeNull();
+  });
+  it("ignores normal pages", () => {
+    expect(blockedPageNote("iPhone 16 Pro 128GB — 54,999 EGP. Free delivery.")).toBeNull();
+  });
+});

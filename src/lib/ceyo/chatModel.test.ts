@@ -28,7 +28,7 @@ it("sends streamed chat and function tools to the Cerebras model", async () => {
   const signal = new AbortController().signal;
   await chatModelResponse([{ role: "user", content: "Calculate 7+8" }], tools, signal);
   expect(CHAT_MODEL).toBe("gpt-oss-120b");
-  expect(request.mock.calls[0][0]).toMatchObject({ stream: true, reasoning_effort: "low", tools });
+  expect(request.mock.calls[0][0]).toMatchObject({ stream: true, reasoning_effort: "medium", tools });
   expect(request.mock.calls[0][0].messages).toEqual([{ role: "user", content: "Calculate 7+8" }]);
   expect(request.mock.calls[0][1]).toBe(signal);
 });
@@ -65,7 +65,7 @@ it("uses the Cerebras adapter for tool-free chat too", async () => {
   );
   expect(request.mock.calls[0][0]).toMatchObject({
     stream: true,
-    reasoning_effort: "low",
+    reasoning_effort: "medium",
     tools: [],
   });
 });

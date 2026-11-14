@@ -13,6 +13,8 @@ export const hostedBotConfig = z.object({
   commands: z.array(z.object({ command: z.string().regex(/^[a-z0-9_]{1,32}$/), description: z.string().min(1).max(256), reply: z.string().max(4000).optional() })).max(30).default([]),
   default_reply: z.string().max(4000).optional(),
   persona: z.string().max(4000).optional(),
+  /** Answer people in the owner's personal chats (Telegram Business). Off unless the owner asked. */
+  business_reply: z.boolean().default(false),
 });
 export type HostedBotConfig = z.infer<typeof hostedBotConfig>;
 
@@ -55,3 +57,6 @@ export function fixedReply(cfg: HostedBotConfig, text: string): string | null {
   if (cfg.mode === "auto_reply") return cfg.default_reply || null;
   return null;
 }
+
+/** Every update type a hosted bot listens to, including the owner's personal chats via Telegram Business. */
+export const HOSTED_UPDATES = ["message", "edited_message", "channel_post", "edited_channel_post", "business_connection", "business_message", "edited_business_message"];

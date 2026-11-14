@@ -72,7 +72,8 @@ export async function chatModelResponse(
       messages: parsedMessages,
       tools: parsedTools,
       stream: true,
-      reasoning_effort: "low",
+      // Agent turns plan multi-step work; "low" produced shallow, manual-instruction answers.
+      reasoning_effort: "medium",
     },
     signal,
   );
