@@ -353,6 +353,20 @@ export function HubChat({
     return () => window.removeEventListener("ceyo-call-task", onTask);
   }, [sessionId, s]);
 
+  const [bgJob, setBgJob] = useState(false);
+  useEffect(() => {
+    if (demo || !sessionId) { setBgJob(false); return; }
+    let alive = true;
+    const check = async () => {
+      const { legacyDb } = await import("@/integrations/supabase/legacyClient").then((m) => ({ legacyDb: (m as any).legacySupabase || (m as any).supabase || (m as any).default }));
+      const { data } = await legacyDb.from("agent_jobs").select("id").eq("conversation_id", sessionId).in("status", ["queued", "running"]).limit(1);
+      if (alive) setBgJob(Boolean(data?.length));
+    };
+    void check().catch(() => {});
+    const t = window.setInterval(() => void check().catch(() => {}), 8000);
+    return () => { alive = false; window.clearInterval(t); };
+  }, [sessionId, demo, s.running]);
+
   const startConversation = async (text: string, origin: RecordingOrigin = {}, images: string[] = []) => {
     if (demo) return;
     const messageId = crypto.randomUUID();
@@ -597,6 +611,7 @@ export function HubChat({
                 ? <ConnectAppsCard key={r.id} title={r.question} apps={readConnectApps({ apps: r.options?.length ? r.options.map((o) => ({ id: o.id, name: o.label, description: o.description })) : [r.subject || r.question] })} ar={ar} onAuthorize={(app) => void connectInline(app)} />
                 : <ChoiceCard key={r.id} question={r.question} options={r.options?.length ? r.options.map((o) => o.label) : r.kind === "approval" ? [ar ? "موافق" : "Approve", ar ? "لأ" : "Don't"] : []} allowFreeText={r.allow_free_text || r.kind === "question"} ar={ar} onAnswer={(v) => { s.setRequests((rs) => rs.filter((x) => x.id !== r.id)); s.send(v); }} />
             ))}
+            {bgJob && !activity.length && <div className="cx-working" key="bg"><BotAvatar agent={agent} size={30} state="tool" /><span dir="auto" className="cx-working-text"><span className="cx-shimmer">{ar ? "لسه شغال على مهمتك في الخلفية…" : "Still working on your task in the background…"}</span></span></div>}
             {activity.slice(0, 1).map(({ bot, state }) => {
               const lastUserText = [...s.turns].reverse().find((t) => t.type === "user")?.text || "";
               const label = workingLabel(lastAgent?.steps || [], state, tick, /[\u0600-\u06FF]/.test(lastUserText) || (!lastUserText && ar));
