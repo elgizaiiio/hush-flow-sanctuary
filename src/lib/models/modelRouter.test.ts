@@ -13,6 +13,11 @@ describe("model router", () => {
     expect(pickRole({ ...base, lastTools: ["web_search"] })).toBe("web");
     expect(pickRole({ ...base, hasImages: true })).toBe("vision");
   });
+  it("routes Apify discovery and social extraction to the web specialist", () => {
+    for (const name of ["apify_search", "apify_actor_details", "apify_run", "apify_status", "apify_results"]) {
+      expect(pickRole({ ...base, lastTools: [name] })).toBe("web");
+    }
+  });
   it("detects big tasks", () => {
     expect(isBigTask("ابنيلي متجر على Supabase")).toBe(true);
     expect(isBigTask("ازيك")).toBe(false);

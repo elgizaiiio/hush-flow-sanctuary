@@ -52,6 +52,7 @@ import { readReactions, writeReactions, REACTIONS } from "./chatPrefs";
 import { IntegrationApprovalCard } from "@/components/agent/IntegrationApprovalCard";
 import { WalletApprovalCard } from "@/components/agent/WalletApprovalCard";
 import { WalletBalanceCard } from "@/components/agent/WalletBalanceCard";
+import { SocialResultsCard } from "@/components/agent/SocialResultsCard";
 import { readTextAttachment } from "@/lib/ceyo/content";
 import { saveDocument } from "@/lib/ceyo/resources";
 import { toast } from "sonner";
@@ -588,6 +589,7 @@ export function HubChat({
                             const d = (card.data || {}) as Record<string, any>;
                             if (card.name === "connect_app") return <ConnectAppsCard key={card.id} apps={readConnectApps(d)} title={d.title || d.question} ar={ar} onAuthorize={(app) => void connectInline(app)} />;
                             if (card.name === "wallet_balance") return <WalletBalanceCard key={card.id} data={d} ar={ar} />;
+                            if (card.name === "social_results") return <SocialResultsCard key={card.id} data={d} ar={ar} />;
                             if (card.name === "wallet_approval") return <WalletApprovalCard key={card.id} data={d} />;
                             if (card.name === "integration_approval") return <IntegrationApprovalCard key={card.id} data={d} ar={ar} onDone={() => window.dispatchEvent(new Event("ceyo-action-completed"))} onApproved={(msg) => { void s.sendInternal(msg); }} />;
                             if (card.name === "secret" || card.name === "api_key") return <SecretCard key={card.id} name={String(d.name || d.title || "API key")} ar={ar} onOpen={() => nav("/settings/vault")} />;

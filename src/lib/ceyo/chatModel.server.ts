@@ -32,6 +32,7 @@ export async function chatModelResponse(
   messages: unknown[],
   tools: unknown[],
   signal: AbortSignal,
+  coarenaModels?: string[],
 ): Promise<Response> {
   const parsedMessages = z
     .array(message)
@@ -76,5 +77,6 @@ export async function chatModelResponse(
       reasoning_effort: "medium",
     },
     signal,
+    coarenaModels,
   );
 }

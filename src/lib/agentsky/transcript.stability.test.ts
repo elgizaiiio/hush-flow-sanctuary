@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { buildTranscript } from "./transcript";
 
 describe("single active agent turn", () => {
+  it("retains structured social results through the saved transcript", () => {
+    const data = { items: [{ platform: "instagram", kind: "reel", title: "Example", url: "https://instagram.com/reel/123", likes: 42 }] };
+    const turns = buildTranscript([{ id: "result", type: "agent.tool_result", part: { type: "tool_result", call_id: "apify1", tool_name: "apify_results", status: "ok", result: JSON.stringify({ type: "ceyo.widget", widget: "social_results", data }) } }], "en", false);
+    expect(turns.flatMap((turn) => turn.type === "agent" ? turn.cards : [])).toContainEqual({ kind: "widget", id: "apify1", name: "social_results", data });
+  });
   it("does not display internal continuation events", () => {
     const turns = buildTranscript([
       { id: "goal", type: "user.message", content: [{ type: "text", text: "Upload my repository" }] },

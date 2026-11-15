@@ -15,9 +15,10 @@ export type CerebrasCompletion = {
 export async function requestCerebrasChatCompletion(
   body: Record<string, unknown>,
   signal: AbortSignal,
+  coarenaModels?: string[],
 ): Promise<Response> {
   const keys = await getCerebrasKeys();
-  return cerebrasRequest(keys, JSON.stringify({ ...body, model: CEREBRAS_MODELS.text }), signal);
+  return cerebrasRequest(keys, JSON.stringify({ ...body, model: CEREBRAS_MODELS.text }), signal, undefined, undefined, coarenaModels);
 }
 
 export async function generateCerebrasChatCompletion(

@@ -16,7 +16,7 @@ export const MODEL_ROLES: Record<ModelRole, string[]> = {
 };
 
 const CODE_TOOLS = /^(run_code|file_editor|computer|run_python|run_shell|create_file|edit_file|save_file|github)/i;
-const WEB_TOOLS = /^(browser|web_search|read_url|http_request|search_|scrape|social)/i;
+const WEB_TOOLS = /^(browser|web_search|read_url|http_request|search_|scrape|social|apify_)/i;
 const BIG_TASK = /(ابن|ابني|اعمل(لي)?\s+(موقع|متجر|تطبيق|بوت|مشروع)|متجر|موقع|تطبيق|مشروع|خط[ةه]|ابحث|بحث|حلل|تقرير|build|create\s+(a|an)\s|website|store|app\b|project|research|analy[sz]e|report|plan|automate|deploy|migrate)/i;
 
 /** A big task gets the orchestrator to plan and to write the final answer. */

@@ -6,7 +6,7 @@ import { tool, type AgentTool } from "./toolSchemas";
 
 const actorId = z.string().regex(/^[a-zA-Z0-9_-]+(?:~[a-zA-Z0-9_-]+)?$/).max(150);
 const reference = z.object({ reference: z.string().uuid() });
-const runRecord = z.object({ actor: actorId, run: z.string().regex(/^[a-zA-Z0-9]+$/), dataset: z.string().regex(/^[a-zA-Z0-9]+$/), signature: z.string() });
+const runRecord = z.object({ actor: actorId, run: z.string().regex(/^[a-zA-Z0-9]+$/), dataset: z.string().regex(/^[a-zA-Z0-9]*$/), signature: z.string() });
 const str = { type: "string" };
 const terminal = new Set(["SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"]);
 
@@ -55,12 +55,13 @@ export function apifyTools(ctx: { db: SupabaseClient; userId: string; signal: Ab
     const build = buildId && /^[a-zA-Z0-9]+$/.test(buildId) ? await call(`/actor-builds/${buildId}`) : null;
     return JSON.stringify({ actor, title: data.title, description: data.description, pricing: data.pricingInfos, inputSchema: build?.data?.inputSchema, exampleInput: data.exampleRunInput });
   });
-  add("apify_run", "Start a bounded asynchronous run of ANY discovered Actor. Only for the user's requested task, with schema-checked input and a stated spending cap. Never retry a start whose outcome is unknown. Then use status/results with the returned reference; never claim completed until SUCCEEDED.", { actor: str, input: { type: "object" }, max_charge_usd: { type: "number" }, timeout_secs: { type: "integer" } }, ["actor", "input"], async (args) => {
+  add("apify_run", "Start a bounded asynchronous run of ANY discovered Actor. Only for the user's requested task, with input matching the inspected schema and a stated spending cap. Never retry a start whose outcome is unknown. Then use status/results with the returned reference; never claim completed until SUCCEEDED.", { actor: str, input: { type: "object" }, max_charge_usd: { type: "number" }, timeout_secs: { type: "integer" } }, ["actor", "input"], async (args) => {
     const p = z.object({ actor: actorId, input: z.record(z.unknown()).refine((v) => JSON.stringify(v).length <= 24000), max_charge_usd: z.number().positive().max(100).default(1), timeout_secs: z.number().int().min(30).max(3600).default(180) }).parse(args);
     // Check signing availability before spending money.
     await sign(p.actor, "preflight", "preflight");
     const { data } = await call(`/acts/${p.actor}/runs?timeout=${p.timeout_secs}&maxTotalChargeUsd=${p.max_charge_usd}`, "POST", p.input);
-    const record = runRecord.parse({ actor: p.actor, run: data.id, dataset: data.defaultDatasetId, signature: await sign(p.actor, data.id, data.defaultDatasetId) });
+    const dataset = data.defaultDatasetId || "";
+    const record = runRecord.parse({ actor: p.actor, run: data.id, dataset, signature: await sign(p.actor, data.id, dataset) });
     const saved = await ctx.db.from("agent_documents").insert({ user_id: ctx.userId, name: `Apify: ${p.actor}`, mime: "application/vnd.ceyo.apify-run+json", content: JSON.stringify(record) }).select("id").single();
     if (saved.error || !saved.data) {
       // No untracked run is deliberately left running; never restart on this error.
@@ -77,6 +78,7 @@ export function apifyTools(ctx: { db: SupabaseClient; userId: string; signal: Ab
   add("apify_results", "Read completed run results with pagination. Social accounts, posts, reels and videos become rich chat cards automatically. Other Actors return structured data. Never claim private/restricted data is accessible without authorization.", { reference: str, offset: { type: "integer" }, limit: { type: "integer" } }, ["reference"], async (args) => {
     const p = reference.extend({ offset: z.number().int().min(0).max(1000000).default(0), limit: z.number().int().min(1).max(20).default(10) }).parse(args);
     const row = await owned(p);
+    if (!row.dataset) throw new Error("This Actor has no dataset. Inspect its documentation/output store instead; the run can still be checked or cancelled.");
     const cacheId = `${p.reference}:${p.offset}:${p.limit}`;
     let items = cached.get(cacheId);
     if (!items) {
@@ -87,7 +89,13 @@ export function apifyTools(ctx: { db: SupabaseClient; userId: string; signal: Ab
       items = result; cached.set(cacheId, items);
     }
     const cards = socialResults(items);
-    return JSON.stringify({ ...(cards.length ? { type: "ceyo.widget", widget: "social_results", data: { items: cards } } : {}), reference: p.reference, offset: p.offset, count: items.length, next_offset: items.length === p.limit ? p.offset + p.limit : null, rows: items }).slice(0, 29000);
+    // Keep valid JSON within the transcript budget; slicing a JSON string destroys saved cards.
+    let shown = [...cards];
+    let rows = [...items];
+    const payload = () => ({ ...(shown.length ? { type: "ceyo.widget", widget: "social_results", data: { items: shown } } : {}), reference: p.reference, offset: p.offset, count: items.length, next_offset: items.length === p.limit ? p.offset + p.limit : null, rows, omitted_rows: items.length - rows.length });
+    while (rows.length && JSON.stringify(payload()).length > 28000) rows.pop();
+    while (shown.length && JSON.stringify(payload()).length > 28000) shown.pop();
+    return JSON.stringify(payload());
   });
   add("apify_cancel", "Abort only a run owned by the current user. Check terminal state first; a completed run does not need cancellation.", { reference: str }, ["reference"], async (args) => {
     const row = await owned(args);

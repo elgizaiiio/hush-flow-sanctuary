@@ -1,8 +1,8 @@
 ## Apify catalogue and social cards — 2026-11-15
-- [ ] Add dynamic Store search, Actor details/input schema, bounded asynchronous runs, status, dataset reads and cancellation using the existing private provider key.
-- [ ] Render platform-specific account/post/reel/video result cards without raw tool JSON.
-- [ ] Extend and test the existing CoArena role routing; Cerebras remains fallback.
-- [ ] Run focused tests and a real provider/chat check; document verification limits.
+- [x] Add dynamic Store search, Actor details/input schema, bounded asynchronous runs, status, dataset reads and cancellation using the existing private provider key.
+- [x] Render platform-specific account/post/reel/video result cards without raw tool JSON.
+- [x] Extend and test the existing CoArena role routing; fix chatModel adapter bypass so real chat gets the selected chain; Cerebras remains fallback.
+- [x] Run focused tests and real provider/chat discovery check; document verification limits. Paid Actor execution remains unverified; no paid test run was started.
 
 ## Stuck background task — 2026-11-15
 - [x] Run long tasks live in the chat reply with all tools instead of a detached worker.

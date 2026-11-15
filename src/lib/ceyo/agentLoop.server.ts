@@ -238,7 +238,7 @@ export async function runAgentLoop(
     sawScreenshot = false;
     if (opts.usageOwner) await (await import("./usage.server")).chargeUsage(opts.usageOwner, `${usageRun}:${step}`);
     const res = opts.chatModel
-      ? await (await import("./chatModel.server")).chatModelResponse(messages, stepTools, signal)
+      ? await (await import("./chatModel.server")).chatModelResponse(messages, stepTools, signal, modelsFor(role))
       : await cerebrasRequest(keys, JSON.stringify({ model: MODEL, messages, ...(stepTools.length ? { tools: stepTools } : {}), stream: true, reasoning_effort: "medium" }), signal, undefined, undefined, modelsFor(role));
     if (!res.ok || !res.body) throw new Error(`AI error ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const reader = res.body.getReader();

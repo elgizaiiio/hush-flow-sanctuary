@@ -11,3 +11,4 @@
 - The newest user message's photos go to the model as image_url parts (older ones as a text note). Why: the main model sees images without bloating history.
 - "Always allow" per app is stored in server-written auth app_metadata.auto_approve_apps; request_integration_action executes directly for those apps. Why: users stop re-approving trusted apps and the browser cannot grant itself approvals.
 - Agent steps pick a CoArena model by role (big-task planning/final answer, fast chat, web, coding, vision) via modelRouter; a failing model tries the next in its chain, then Cerebras. Why: strongest model only where it matters, cheaper fast models elsewhere, no failed replies.
+- Chat adapters must forward the selected per-step CoArena chain; Apify uses live discovery and signed owner-bound run documents, and validated social payloads render as chat cards. Why: routing must apply to real chat without catalogue bloat or cross-account run access.
