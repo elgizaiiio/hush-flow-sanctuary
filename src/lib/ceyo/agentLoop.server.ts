@@ -1,4 +1,5 @@
 import { CEREBRAS_MODELS } from "@/lib/keys/cerebrasKey";
+import { isBigTask, modelsFor, pickRole } from "@/lib/models/modelRouter";
 import { COARENA_MODEL, COARENA_URL, getCerebrasKeys, markCerebrasFailure, markCerebrasUse, type CerebrasKey } from "@/lib/keys/cerebrasKey";
 import { canUseAuthorizedBackup, classifyProviderFailure } from "./providerFailover";
 import { getProviderKey } from "@/lib/keys/providerKey";
@@ -129,28 +130,37 @@ const sleep = (ms: number, signal: AbortSignal) => new Promise<void>((resolve, r
  * (CEREBRAS_API_KEY may hold several, comma separated) and otherwise waits the
  * provider's Retry-After before trying again, so the reply continues instead of failing.
  */
-export async function cerebrasRequest(keys: (string | CerebrasKey)[], body: string, signal: AbortSignal, maxWaitMs = 240_000, authorizedBackup = process.env.CEREBRAS_INDEPENDENT_BACKUP_ALLOWED === "true"): Promise<Response> {
+export async function cerebrasRequest(keys: (string | CerebrasKey)[], body: string, signal: AbortSignal, maxWaitMs = 240_000, authorizedBackup = process.env.CEREBRAS_INDEPENDENT_BACKUP_ALLOWED === "true", coarenaModels: string[] = [COARENA_MODEL]): Promise<Response> {
   if (!keys.length) throw new Error("AI is not configured");
+  const models = coarenaModels.length ? coarenaModels : [COARENA_MODEL];
   let keyCursor = 0;
+  let modelCursor = 0;
   let waited = 0;
   for (let attempt = 0; ; attempt++) {
     signal.throwIfAborted();
     const key = keys[keyCursor];
     const credential = typeof key === "string" ? key : key.api_key;
     const coarena = typeof key !== "string" && key.provider === "coarena";
-    const res = await fetch(coarena ? COARENA_URL : CEREBRAS_URL, { method: "POST", signal, headers: { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" }, body: coarena ? withModel(body, COARENA_MODEL) : body });
+    const res = await fetch(coarena ? COARENA_URL : CEREBRAS_URL, { method: "POST", signal, headers: { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" }, body: coarena ? withModel(body, models[modelCursor]) : body });
     if (res.ok) {
       if (typeof key !== "string") await markCerebrasUse(key);
       return res;
     }
     const failure = classifyProviderFailure(res.status);
     const after = Number(res.headers.get("retry-after"));
-    if (typeof key !== "string" && failure !== "request_error") await markCerebrasFailure(key, res.status, failure, Number.isFinite(after) && after > 0 ? after : undefined);
+    if (typeof key !== "string" && failure !== "request_error" && !(coarena && modelCursor + 1 < models.length)) await markCerebrasFailure(key, res.status, failure, Number.isFinite(after) && after > 0 ? after : undefined);
     // CoArena is a separate primary provider: on any non-request failure fall through to the next key (Cerebras) instead of waiting.
-    if (coarena) console.warn(`[coarena] ${res.status}, falling back: ${(await res.clone().text().catch(() => "")).slice(0, 200)}`);
+    if (coarena) console.warn(`[coarena] ${models[modelCursor]} ${res.status}, falling back: ${(await res.clone().text().catch(() => "")).slice(0, 200)}`);
+    // A busy specialist model: try the next model in its chain on the same key before leaving CoArena.
+    if (coarena && modelCursor + 1 < models.length && (failure !== "request_error" || res.status === 404)) {
+      await res.body?.cancel().catch(() => {});
+      modelCursor++;
+      continue;
+    }
     if (coarena && keyCursor + 1 < keys.length && (failure !== "request_error" || res.status === 400 || res.status === 404 || res.status === 413)) {
       await res.body?.cancel().catch(() => {});
       keyCursor++;
+      modelCursor = 0;
       continue;
     }
     if (canUseAuthorizedBackup(failure, authorizedBackup) && keyCursor + 1 < keys.length) {
@@ -205,6 +215,12 @@ export async function runAgentLoop(
   let techAskNudged = false;
   let toolsUsed = 0;
   const turn = crypto.randomUUID().slice(0, 8);
+  const lastUser = [...history].reverse().find((m: any) => m.role === "user") as any;
+  const lastUserText = typeof lastUser?.content === "string" ? lastUser.content : Array.isArray(lastUser?.content) ? lastUser.content.map((p: any) => p?.text ?? "").join(" ") : "";
+  const userPhotos = Array.isArray(lastUser?.content) && lastUser.content.some((p: any) => p?.type === "image_url");
+  const bigTask = isBigTask(lastUserText);
+  let lastTools: string[] = [];
+  let sawScreenshot = false;
   const usageRun = crypto.randomUUID();
 
   try {
@@ -217,10 +233,13 @@ export async function runAgentLoop(
     const budget = left <= 1 ? "\n\nThis is your LAST step: no more tools. Give the final answer now with everything you found, clearly marking estimates and anything unfinished." : left <= 4 ? `\n\nOnly ${left} steps left: stop researching, finish the deliverable with what you have now (estimates allowed, say so) and answer.` : "";
     messages[0] = { role: "system", content: `${system}\n\n${PLANNING_RULES}${plan.length ? `\nCurrent plan:\n${plan.join("\n")}` : ""}${budget}\n\n${replyLanguageInstruction(messages)}` };
     const stepTools = left <= 1 ? [] : allTools;
+    const role = pickRole({ step, finalStep: left <= 1, bigTask, lastTools, hasImages: (step === 0 && userPhotos) || sawScreenshot });
+    lastTools = [];
+    sawScreenshot = false;
     if (opts.usageOwner) await (await import("./usage.server")).chargeUsage(opts.usageOwner, `${usageRun}:${step}`);
     const res = opts.chatModel
       ? await (await import("./chatModel.server")).chatModelResponse(messages, stepTools, signal)
-      : await cerebrasRequest(keys, JSON.stringify({ model: MODEL, messages, ...(stepTools.length ? { tools: stepTools } : {}), stream: true, reasoning_effort: "medium" }), signal);
+      : await cerebrasRequest(keys, JSON.stringify({ model: MODEL, messages, ...(stepTools.length ? { tools: stepTools } : {}), stream: true, reasoning_effort: "medium" }), signal, undefined, undefined, modelsFor(role));
     if (!res.ok || !res.body) throw new Error(`AI error ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const reader = res.body.getReader();
     const dec = new TextDecoder();
@@ -319,6 +338,8 @@ export async function runAgentLoop(
       // The model often sends null for optional fields; treat them as omitted so tool validation doesn't fail.
       if (args && typeof args === "object" && !Array.isArray(args)) args = Object.fromEntries(Object.entries(args).filter(([, v]) => v !== null));
       toolsUsed++;
+      lastTools.push(c.name);
+      if (c.name === "browser" && args.action === "look") sawScreenshot = true;
       emit({ id: `${c.id}-call`, type: "agent.tool_use", part: { type: "tool_call", call_id: c.id, tool_name: c.name, args } });
       let result: string;
       let status = "ok";
