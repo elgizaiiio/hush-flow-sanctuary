@@ -1,3 +1,7 @@
+## Independence from Lovable — 2026-11-15
+- [ ] Audit active runtime/hosting/scheduler/media/email/GitHub dependencies; remove replaceable Lovable dependencies and verify external Supabase storage.
+- [ ] Verify independent deployment and scheduled callback before account deletion; report any provider/hosting authorization blockers.
+
 ## Official messaging channels — 2026-11-15
 - [x] Audit Lovable secret listing; delete unused Telegram copy after confirming external Vault transport. Supplied X app credentials saved only in external Supabase with service-only permissions.
 - [ ] Move existing scheduler credential dependency — Lovable marks LOVABLE_CRON_SECRET undeletable; coordinated scheduler/runtime replacement is needed, not performed here. LOVABLE_API_KEY is platform-managed, not application data.
