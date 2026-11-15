@@ -24,4 +24,15 @@ export function equalSecret(left: string, right: string) {
 export function privateSender(message: NonNullable<z.infer<typeof telegramUpdate>["message"]>) {
   return message.chat.type === "private" && message.chat.id === message.from.id && !message.from.is_bot;
 }
+const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+/** Short code shown to the user only when they ask; valid for one minute. */
+export function newShortCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  const raw = Array.from(bytes, b => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+  return `${raw.slice(0, 4)}-${raw.slice(4)}`;
+}
+export function shortCode(text: string) {
+  const m = text.trim().match(/^(?:\/start(?:@\w+)?\s+)?([A-Za-z0-9]{4})[- ]?([A-Za-z0-9]{4})$/);
+  return m ? `${m[1]}-${m[2]}`.toUpperCase() : null;
+}
 export function pairingCode(text: string) { return text.match(/^\/start(?:@\w+)?\s+([a-f0-9]{64})$/i)?.[1] ?? null; }

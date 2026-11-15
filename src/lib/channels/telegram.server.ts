@@ -1,4 +1,4 @@
-import { pairingCode, pairingHash, privateSender, telegramUpdate } from "./security";
+import { pairingCode, pairingHash, shortCode, privateSender, telegramUpdate } from "./security";
 import { telegramRequest } from "@/lib/keys/telegram.server";
 
 /** Called only after the route verifies Telegram's secret. No identity supplied by message text is trusted. */
@@ -10,17 +10,27 @@ export async function receiveTelegram(raw: unknown, token: string, origin: strin
   const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
   const externalId = String(message.from.id);
   const send = (text: string) => telegramRequest(token, "sendMessage", { chat_id: message.chat.id, text });
+  const notify = (text: string) => send(text).catch(() => undefined);
   const code = pairingCode(message.text);
   if (code) {
     const result = await db.rpc("consume_channel_pairing", { p_platform: "telegram", p_external_user: externalId, p_token_hash: await pairingHash(code) });
     if (result.error) return new Response("Connection unavailable", { status: 503 });
-    await send(result.data ? "اتربط حسابك ✅ تقدر تكلمني هنا؛ المحادثة دي خاصة بحسابك." : "الرابط انتهى أو مش متاح. اطلب رابط جديد من وكيلك داخل التطبيق.");
+    await notify(result.data ? "اتربط حسابك ✅ تقدر تكلمني هنا؛ المحادثة دي خاصة بحسابك." : "الرابط انتهى أو مش متاح. اطلب رابط جديد من وكيلك داخل التطبيق.");
     return Response.json({ ok: true });
+  }
+  const short = shortCode(message.text);
+  if (short) {
+    const result = await db.rpc("consume_channel_pairing", { p_platform: "telegram", p_external_user: externalId, p_token_hash: await pairingHash(`telegram:${short}`) });
+    if (result.error) return new Response("Connection unavailable", { status: 503 });
+    if (result.data) {
+      await notify("اتربط حسابك ✅ دلوقتي تقدر تكلمني هنا عادي، وكل حاجة بتتحفظ في حسابك.");
+      return Response.json({ ok: true });
+    }
   }
   const { data: identity, error } = await db.from("channel_identities").select("*").eq("platform", "telegram").eq("external_user_id", externalId).maybeSingle();
   if (error) return new Response("Connection unavailable", { status: 503 });
   if (!identity) {
-    await send("أهلًا 👋 اطلب من وكيلك داخل التطبيق رابط تليجرام، وافتحه مرة واحدة علشان أوصلك بحسابك بأمان.");
+    await notify("أهلًا 👋 علشان أعرفك: افتح التطبيق وقول لوكيلك «عايز كود تليجرام»، وابعتلي الكود هنا خلال دقيقة.\nHi 👋 Ask your agent in the app for a Telegram code and send it here within a minute.");
     return Response.json({ ok: true });
   }
   const eventId = String(parsed.data.update_id);

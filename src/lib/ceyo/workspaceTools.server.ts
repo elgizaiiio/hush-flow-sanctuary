@@ -23,6 +23,12 @@ export function workspaceTools(ctx: Context): AgentTool[] {
     const { createTelegramPairing } = await import("@/lib/channels/pairing.server");
     return JSON.stringify(await createTelegramPairing(db, userId, ctx.botId));
   });
+  add("my_channel_code", "Create a fresh one-minute code the user sends to the official Telegram bot or @Ceyobot on X to talk to this bot there. Only call when the user asks to connect Telegram or X. Show the code, where to send it, and that it expires in one minute.", { platform: { type: "string", enum: ["telegram", "xchat"] } }, ["platform"], async (args) => {
+    if (!ctx.botId) throw new Error("Select a bot first");
+    const platform = z.enum(["telegram", "xchat"]).parse((args as { platform?: string }).platform);
+    const { createChannelCode } = await import("@/lib/channels/pairing.server");
+    return JSON.stringify(await createChannelCode(db, userId, ctx.botId, platform));
+  });
   add("calculate", "Evaluate a bounded arithmetic expression accurately. This is a calculator, not Python or shell execution.", { expression: str }, ["expression"], async (args) => {
     const { expression } = z.object({ expression: z.string().min(1).max(500).regex(/^[0-9\s.+\-*/()%]+$/) }).parse(args);
     const result = evaluate(expression);

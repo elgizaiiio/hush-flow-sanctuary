@@ -22,3 +22,13 @@ describe("official channel privacy", () => {
     expect(telegramUpdate.safeParse({ update_id: 1, message: { ...message, text: "x".repeat(10001) } }).success).toBe(false);
   });
 });
+import { newShortCode, shortCode } from "./security";
+describe("short channel codes", () => {
+  it("parses codes with or without dash/start", () => {
+    const c = newShortCode();
+    expect(shortCode(c)).toBe(c);
+    expect(shortCode(c.replace("-", "").toLowerCase())).toBe(c);
+    expect(shortCode(`/start ${c}`)).toBe(c);
+    expect(shortCode("hello there")).toBeNull();
+  });
+});
