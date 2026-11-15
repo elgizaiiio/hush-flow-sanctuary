@@ -8,6 +8,10 @@ export const socialItemSchema = z.object({
   author: z.string().max(200).optional(), image: z.string().url().optional(),
   likes: z.number().nonnegative().optional(), views: z.number().nonnegative().optional(),
   followers: z.number().nonnegative().optional(),
+  comments: z.number().nonnegative().optional(), shares: z.number().nonnegative().optional(),
+  following: z.number().nonnegative().optional(), posts: z.number().nonnegative().optional(),
+  handle: z.string().max(100).optional(), avatar: z.string().url().optional(),
+  verified: z.boolean().optional(), date: z.string().max(40).optional(), duration: z.number().nonnegative().optional(),
 });
 export type SocialItem = z.infer<typeof socialItemSchema>;
 
@@ -32,7 +36,14 @@ export function socialResults(rows: unknown[]): SocialItem[] {
     const authorMeta = row.authorMeta && typeof row.authorMeta === "object" ? row.authorMeta as Record<string, unknown> : {};
     const author = text(row, ["ownerUsername", "username", "authorName", "channelName"]) || text(authorMeta, ["name", "nickName"]);
     const title = text(row, ["title", "fullName", "name", "username"]) || author || platform;
-    const item = { platform, kind, url, title: title.slice(0, 300), author: author?.slice(0, 200), text: text(row, ["caption", "text", "description", "biography"])?.slice(0, 2000), image: https(text(row, ["displayUrl", "thumbnailUrl", "profilePicUrlHD", "profilePicUrl", "thumbnail", "coverUrl"]) || text(authorMeta, ["avatar"])), likes: count(row, ["likesCount", "likeCount", "diggCount"]), views: count(row, ["videoViewCount", "viewCount", "playCount"]), followers };
+    const item = { platform, kind, url, title: title.slice(0, 300), author: author?.slice(0, 200), text: text(row, ["caption", "text", "description", "biography"])?.slice(0, 2000), image: https(text(row, ["displayUrl", "thumbnailUrl", "profilePicUrlHD", "profilePicUrl", "thumbnail", "coverUrl"]) || text(authorMeta, ["avatar"])), likes: count(row, ["likesCount", "likeCount", "diggCount"]), views: count(row, ["videoViewCount", "viewCount", "playCount"]), followers,
+      comments: count(row, ["commentsCount", "commentCount", "replyCount", "numComments"]), shares: count(row, ["sharesCount", "shareCount", "retweetCount", "repostCount"]),
+      following: count(row, ["followsCount", "followingCount", "following"]), posts: count(row, ["postsCount", "mediaCount", "videoCount"]),
+      handle: (text(row, ["ownerUsername", "username", "screenName"]) || text(authorMeta, ["name"]))?.replace(/^@/, "").slice(0, 100),
+      avatar: https(text(row, ["ownerProfilePicUrl", "profilePicUrl", "authorAvatar"]) || text(authorMeta, ["avatar"])),
+      verified: typeof row.verified === "boolean" ? row.verified : typeof row.isVerified === "boolean" ? row.isVerified : undefined,
+      date: text(row, ["timestamp", "createdAt", "date", "uploadDate", "createTimeISO"])?.slice(0, 40),
+      duration: count(row, ["videoDuration", "duration"]) };
     const checked = socialItemSchema.safeParse(item);
     return checked.success ? [checked.data] : [];
   });

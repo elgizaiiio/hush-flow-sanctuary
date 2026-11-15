@@ -141,7 +141,19 @@ export async function cerebrasRequest(keys: (string | CerebrasKey)[], body: stri
     const key = keys[keyCursor];
     const credential = typeof key === "string" ? key : key.api_key;
     const coarena = typeof key !== "string" && key.provider === "coarena";
-    const res = await fetch(coarena ? COARENA_URL : CEREBRAS_URL, { method: "POST", signal, headers: { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" }, body: coarena ? withModel(body, models[modelCursor]) : body });
+    let res: Response;
+    try {
+      res = await fetch(coarena ? COARENA_URL : CEREBRAS_URL, { method: "POST", signal, headers: { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" }, body: coarena ? withModel(body, models[modelCursor]) : body });
+    } catch (error) {
+      // Connection drops ("fetch failed") must not end the reply: try the next model/key, then retry briefly.
+      if (signal.aborted) throw error;
+      if (coarena && modelCursor + 1 < models.length) { modelCursor++; continue; }
+      if (keyCursor + 1 < keys.length) { keyCursor++; modelCursor = 0; continue; }
+      if (attempt >= 4) throw new Error("The connection dropped, send it again in a moment.");
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      keyCursor = 0; modelCursor = 0;
+      continue;
+    }
     if (res.ok) {
       if (typeof key !== "string") await markCerebrasUse(key);
       return res;

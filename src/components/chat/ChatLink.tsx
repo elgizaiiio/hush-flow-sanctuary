@@ -32,7 +32,11 @@ function NamedLink({ url, label }: { url: URL; label?: ReactNode }) {
     return () => { controller.abort(); clearTimeout(timer); };
   }, [url.href, named, plain, path, host]);
   return <a href={url.href} target="_blank" rel="noopener noreferrer" title={title} className="cx-named-link">
-    {iconFailed ? <Globe size={14} aria-hidden /> : <img src={`${url.origin}/favicon.ico`} alt="" width={16} height={16} referrerPolicy="no-referrer" onError={() => setIconFailed(true)} />}
+    {iconFailed ? <Globe size={14} aria-hidden /> : <img src={siteIcon(url.hostname)} alt="" width={16} height={16} referrerPolicy="no-referrer" onError={() => setIconFailed(true)} />}
     <span dir="auto">{title}</span><ArrowUpRight size={12} aria-hidden />
   </a>;
+}
+/** Simple, reliable favicon source for any site (Google's public favicon service, host only — no path or query). */
+export function siteIcon(host: string, size = 64) {
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=${size}`;
 }
