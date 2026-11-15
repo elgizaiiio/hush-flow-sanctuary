@@ -2,3 +2,4 @@
 - Pair external senders through expiring, single-use hashed links and owner-checked database consumption, never a supplied email or app user ID. Why: channel identities must prove access to the signed-in app account.
 - Never pass the service-role client to workspaceTools; external conversations currently use the owner-bound loop's built-in execution only. Why: integrations require caller-scoped RLS and app approval flows.
 - Persist receipt claims before model execution and do not automatically repeat ambiguous sends or interrupted external actions. Why: provider retries must not duplicate work.
+- X webhooks verify raw-body HMAC using Web Crypto and fail closed until official ciphertext verification/decryption and durable delivery are active; never use legacy plaintext DM sends for X Chat. Why: authenticated ciphertext must not be lost or misinterpreted.

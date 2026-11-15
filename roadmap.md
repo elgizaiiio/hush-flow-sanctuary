@@ -1,12 +1,13 @@
 ## Official messaging channels — 2026-11-15
-- [ ] Audit existing Lovable-held credentials and move any project-owned values to external Supabase without breaking dependent services; platform-managed values are separate.
-- [ ] Complete X Chat setup using supplied app credentials in external Supabase Vault; verify current encrypted transport, signed receipt/reply handling and report activation blockers truthfully.
+- [x] Audit Lovable secret listing; delete unused Telegram copy after confirming external Vault transport. Supplied X app credentials saved only in external Supabase with service-only permissions.
+- [ ] Move existing scheduler credential dependency — Lovable marks LOVABLE_CRON_SECRET undeletable; coordinated scheduler/runtime replacement is needed, not performed here. LOVABLE_API_KEY is platform-managed, not application data.
+- [x] Add/test edge-compatible X CRC and signature checks; actual local challenge 200 and unsigned POST 401. Encrypted messages fail closed; no webhook registration or reply activation claimed.
 - [x] Store dedicated Telegram/X Chat credentials in service-only Supabase Vault, separate from key administration; both provider identities verified live.
 - [x] Add single-use owner pairing and isolated bot conversation routing for Telegram; expose a named pairing link through the app agent.
 - [x] Verify X Chat's encrypted-message contract; document consumer-secret/private-key requirements without adding an unsupported edge adapter.
 - [x] Run 10 privacy/routing regressions, actual public RPC/table-access checks and unsigned webhook rejection; build OK.
 - [ ] Activate and test Telegram pairing/message/app readback end to end — needs deployment of the new endpoint and Telegram webhook registration; not activated in this pass.
-- [ ] X Chat receiving/replies — blocked on X app consumer secret and verified official crypto transport deployment.
+- [ ] X Chat receiving/replies — supplied credentials saved; needs persistent official crypto transport hosting or verified Worker adapter and real encrypted message/app readback. Existing key/backup records verified, unlock untested.
 - [ ] Instagram/Facebook/WhatsApp messaging — blocked on owned Meta account authorizations and WhatsApp business number setup.
 
 ## Friendly chat and readable links — 2026-11-15
