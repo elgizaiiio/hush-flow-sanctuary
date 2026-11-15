@@ -106,7 +106,10 @@ async function runTool(name: string, args: any, computer: Computer): Promise<str
   if (name === "read_url") {
     const url = String(args.url ?? "");
     if (!/^https?:\/\//.test(url)) return "Invalid URL.";
-    return strip(await bbFetch(url)).slice(0, 12000) || "Empty page.";
+    let html = "";
+    try { html = await bbFetch(url); } catch { /* fall back to a direct read */ }
+    if (!strip(html)) html = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible; CeyoBot/1.0)" }, signal: AbortSignal.timeout(20_000) }).then((r) => r.text()).catch(() => "");
+    return strip(html).slice(0, 12000) || "Empty page. Try another source from web_search or the browser tool.";
   }
   return "Unknown tool.";
 }
