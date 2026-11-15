@@ -8,6 +8,7 @@ import { routineInput, nextRoutineRun, nextMinuteRoutineRun, documentInput } fro
 import { evaluate } from "mathjs";
 import { callRequestId, requestsCall } from "@/lib/calls/callLifecycle";
 import { extraTools } from "./extraTools.server";
+import { apifyTools } from "./apifyTools.server";
 
 type Context = { db: SupabaseClient; userId: string; botId: string | null; conversationId: string; primary: boolean; emit: (e: LoopEvent) => void; signal: AbortSignal; poll: () => Promise<string[]>; delegation?: boolean; origin?: string };
 const str = { type: "string" };
@@ -209,5 +210,6 @@ export function workspaceTools(ctx: Context): AgentTool[] {
   add("ask_user", "Ask a necessary clarifying question with choices.", { question: str, options: { type: "array", items: str }, allow_free_text: { type: "boolean" } }, ["question"], async () => "Question shown. Wait for the user's answer before further dependent actions.");
   add("update_plan", "Display task progress with concrete steps.", { title: str, steps: { type: "array", items: { type: "object", properties: { title: str, status: str } } } }, ["title", "steps"], async () => "Plan updated.");
   list.push(...extraTools({ db, userId, origin: ctx.origin }));
+  list.push(...apifyTools({ db, userId, signal: ctx.signal }));
   return list;
 }
