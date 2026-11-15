@@ -641,7 +641,7 @@ export type Database = {
           created_at: string
           event_id: string
           id: string
-          identity_id: string
+          identity_id: string | null
           platform: string
           status: string
           updated_at: string
@@ -650,7 +650,7 @@ export type Database = {
           created_at?: string
           event_id: string
           id?: string
-          identity_id: string
+          identity_id?: string | null
           platform: string
           status?: string
           updated_at?: string
@@ -659,7 +659,7 @@ export type Database = {
           created_at?: string
           event_id?: string
           id?: string
-          identity_id?: string
+          identity_id?: string | null
           platform?: string
           status?: string
           updated_at?: string
