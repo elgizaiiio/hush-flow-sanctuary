@@ -1,4 +1,5 @@
 ## Official messaging channels — 2026-11-15
+- [ ] Audit existing Lovable-held credentials and move any project-owned values to external Supabase without breaking dependent services; platform-managed values are separate.
 - [ ] Complete X Chat setup using supplied app credentials in external Supabase Vault; verify current encrypted transport, signed receipt/reply handling and report activation blockers truthfully.
 - [x] Store dedicated Telegram/X Chat credentials in service-only Supabase Vault, separate from key administration; both provider identities verified live.
 - [x] Add single-use owner pairing and isolated bot conversation routing for Telegram; expose a named pairing link through the app agent.
