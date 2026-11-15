@@ -61,6 +61,7 @@ import { Route as ApiPublicTelegramKeysRouteImport } from './routes/api/public/t
 import { Route as ApiPublicTelnyxVoiceRouteImport } from './routes/api/public/telnyx-voice'
 import { Route as ApiPublicAgentToolsTokenRouteImport } from './routes/api/public/agent-tools.$token'
 import { Route as ApiPublicChannelsTelegramRouteImport } from './routes/api/public/channels/telegram'
+import { Route as ApiPublicChannelsXPollRouteImport } from './routes/api/public/channels/x-poll'
 import { Route as ApiPublicChannelsXchatRouteImport } from './routes/api/public/channels/xchat'
 import { Route as ApiPublicMediaStatusRunIdRouteImport } from './routes/api/public/media-status.$runId'
 import { Route as ApiPublicSiteSiteIdRouteImport } from './routes/api/public/site.$siteId'
@@ -331,6 +332,11 @@ const ApiPublicChannelsTelegramRoute =
     path: '/api/public/channels/telegram',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicChannelsXPollRoute = ApiPublicChannelsXPollRouteImport.update({
+  id: '/api/public/channels/x-poll',
+  path: '/api/public/channels/x-poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicChannelsXchatRoute = ApiPublicChannelsXchatRouteImport.update({
   id: '/api/public/channels/xchat',
   path: '/api/public/channels/xchat',
@@ -424,6 +430,7 @@ export interface FileRoutesByFullPath {
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
   '/api/public/channels/telegram': typeof ApiPublicChannelsTelegramRoute
+  '/api/public/channels/x-poll': typeof ApiPublicChannelsXPollRoute
   '/api/public/channels/xchat': typeof ApiPublicChannelsXchatRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
   '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
@@ -485,6 +492,7 @@ export interface FileRoutesByTo {
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
   '/api/public/channels/telegram': typeof ApiPublicChannelsTelegramRoute
+  '/api/public/channels/x-poll': typeof ApiPublicChannelsXPollRoute
   '/api/public/channels/xchat': typeof ApiPublicChannelsXchatRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
   '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
@@ -547,6 +555,7 @@ export interface FileRoutesById {
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
   '/api/public/channels/telegram': typeof ApiPublicChannelsTelegramRoute
+  '/api/public/channels/x-poll': typeof ApiPublicChannelsXPollRoute
   '/api/public/channels/xchat': typeof ApiPublicChannelsXchatRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
   '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
@@ -610,6 +619,7 @@ export interface FileRouteTypes {
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
     | '/api/public/channels/telegram'
+    | '/api/public/channels/x-poll'
     | '/api/public/channels/xchat'
     | '/api/public/media-status/$runId'
     | '/api/public/site/$siteId'
@@ -671,6 +681,7 @@ export interface FileRouteTypes {
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
     | '/api/public/channels/telegram'
+    | '/api/public/channels/x-poll'
     | '/api/public/channels/xchat'
     | '/api/public/media-status/$runId'
     | '/api/public/site/$siteId'
@@ -732,6 +743,7 @@ export interface FileRouteTypes {
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
     | '/api/public/channels/telegram'
+    | '/api/public/channels/x-poll'
     | '/api/public/channels/xchat'
     | '/api/public/media-status/$runId'
     | '/api/public/site/$siteId'
@@ -794,6 +806,7 @@ export interface RootRouteChildren {
   ApiPublicTelnyxVoiceRoute: typeof ApiPublicTelnyxVoiceRoute
   ApiPublicAgentToolsTokenRoute: typeof ApiPublicAgentToolsTokenRoute
   ApiPublicChannelsTelegramRoute: typeof ApiPublicChannelsTelegramRoute
+  ApiPublicChannelsXPollRoute: typeof ApiPublicChannelsXPollRoute
   ApiPublicChannelsXchatRoute: typeof ApiPublicChannelsXchatRoute
   ApiPublicMediaStatusRunIdRoute: typeof ApiPublicMediaStatusRunIdRoute
   ApiPublicSiteSiteIdRoute: typeof ApiPublicSiteSiteIdRoute
@@ -1169,6 +1182,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicChannelsTelegramRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/channels/x-poll': {
+      id: '/api/public/channels/x-poll'
+      path: '/api/public/channels/x-poll'
+      fullPath: '/api/public/channels/x-poll'
+      preLoaderRoute: typeof ApiPublicChannelsXPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/channels/xchat': {
       id: '/api/public/channels/xchat'
       path: '/api/public/channels/xchat'
@@ -1274,6 +1294,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTelnyxVoiceRoute: ApiPublicTelnyxVoiceRoute,
   ApiPublicAgentToolsTokenRoute: ApiPublicAgentToolsTokenRoute,
   ApiPublicChannelsTelegramRoute: ApiPublicChannelsTelegramRoute,
+  ApiPublicChannelsXPollRoute: ApiPublicChannelsXPollRoute,
   ApiPublicChannelsXchatRoute: ApiPublicChannelsXchatRoute,
   ApiPublicMediaStatusRunIdRoute: ApiPublicMediaStatusRunIdRoute,
   ApiPublicSiteSiteIdRoute: ApiPublicSiteSiteIdRoute,

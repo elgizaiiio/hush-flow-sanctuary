@@ -7,6 +7,7 @@ export const Route = createFileRoute("/api/public/ceyo-routines")({ server: { ha
   const { runDueRoutines } = await import("@/lib/ceyo/routines.server");
   const { runStaleJobs } = await import("@/lib/ceyo/backgroundJobs.server");
   const { syncPhoneCalls } = await import("@/lib/phone/telnyx.server");
-  const [results, jobs, phone] = await Promise.all([runDueRoutines(), runStaleJobs(), syncPhoneCalls().catch(() => [])]);
-  return Response.json({ results, jobs, phone });
+  const { pollXMessages } = await import("@/lib/channels/xPoll.server");
+  const [results, jobs, phone, x] = await Promise.all([runDueRoutines(), runStaleJobs(), syncPhoneCalls().catch(() => []), pollXMessages().catch(() => ({ error: true }))]);
+  return Response.json({ results, jobs, phone, x });
 } } } });
