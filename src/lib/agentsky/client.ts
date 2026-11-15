@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { assignAgentVoices, type AgentVoiceSettings, type RecordingOrigin } from "@/lib/audio/agentVoice";
 import type { Voice } from "@/lib/audio/voiceSchema";
 import { readEventStream } from "./readEventStream";
+import { isInternalMessage } from "./internalMessages";
 
 export type AgentColor = "aurora" | "ocean" | "ember" | "mint" | "sun" | "rose" | "mono";
 
@@ -114,12 +115,12 @@ async function startReply(sessionId: string) {
   })();
 }
 
-async function addUserMessage(sessionId: string, text: string, images: string[] = [], messageId: string = crypto.randomUUID(), origin: RecordingOrigin = {}) {
+async function addUserMessage(sessionId: string, text: string, images: string[] = [], messageId: string = crypto.randomUUID(), origin: RecordingOrigin = {}, internal = false) {
   const user = await uid();
-  const { data, error } = await db.from("messages").insert({ id: messageId, conversation_id: sessionId, user_id: user, role: "user", content: text, metadata: { images, ...origin } }).select("id, created_at").single();
+  const { data, error } = await db.from("messages").insert({ id: messageId, conversation_id: sessionId, user_id: user, role: "user", content: text, metadata: { images, ...origin, ...(internal ? { internal: true } : {}) } }).select("id, created_at").single();
   if (error) fail(error);
   const live = running.get(sessionId);
-  const e: RawEvent = { id: data.id, type: "user.message", ...origin, at: data.created_at, content: [{ type: "text", text }, ...images.map((url) => ({ type: "image", source: { type: "url", url } }))] };
+  const e: RawEvent = { id: data.id, type: "user.message", internal, ...origin, at: data.created_at, content: [{ type: "text", text }, ...images.map((url) => ({ type: "image", source: { type: "url", url } }))] };
   if (live) {
     // The bot is still working: it reads this message mid-run and changes course.
     live.events.push(e);
@@ -291,6 +292,7 @@ export const agentApi = {
     const embeddedUsers = new Set((data || []).flatMap((m: any) => (m.metadata?.transcript || []).filter((e: RawEvent) => e.type === "user.message").map((e: RawEvent) => e.id)));
     for (const m of data ?? []) {
       if (m.role === "user") {
+        if (isInternalMessage(m.metadata)) continue;
         if (embeddedUsers.has(m.id)) continue;
         const imgs: string[] = Array.isArray(m.metadata?.images) ? m.metadata.images : [];
         events.push({ id: m.id, type: "user.message", voiceOrigin: m.metadata?.voiceOrigin, recordingId: m.metadata?.recordingId, at: m.created_at, content: [{ type: "text", text: m.content }, ...imgs.map((url) => ({ type: "image", source: { type: "url", url } }))] });
@@ -311,6 +313,7 @@ export const agentApi = {
     return { events: [...events, ...(live?.events || []).filter((event) => !ids.has(event.id))], status: live ? "running" : "idle" };
   },
   send: (id: string, text: string, images?: string[], messageId?: string, origin?: RecordingOrigin) => addUserMessage(id, text, images, messageId, origin),
+  sendInternal: (id: string, text: string) => addUserMessage(id, text, [], crypto.randomUUID(), {}, true),
   interrupt: async (id: string) => {
     running.get(id)?.ctl.abort();
     return { status: "idle" };
@@ -338,6 +341,7 @@ export async function mediaStatus(runId: string, token: string) {
 /* ---------------- events ---------------- */
 
 export type RawEvent = {
+  internal?: boolean;
   id: string;
   type: string;
   at?: string;

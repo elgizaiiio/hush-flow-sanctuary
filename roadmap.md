@@ -1,3 +1,9 @@
+## Approval continuation and browser stability — 2026-11-15
+- [ ] Hide internal approval/connection follow-ups in live and saved chat while retaining model context.
+- [ ] Match approval cards to connect cards; collapse completed approvals to muted app name/icon.
+- [ ] Keep cloud browser alive between controls; verify repeated real browser actions.
+- [ ] Run focused regressions and document authenticated-flow verification limits.
+
 ## Chat polish batch — 2026-11-14
 - [x] Thinking line follows the bot's real step, in the user's language.
 - [x] Long user messages collapse to one line with "Show more".

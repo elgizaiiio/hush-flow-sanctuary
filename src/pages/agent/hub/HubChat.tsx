@@ -338,7 +338,7 @@ export function HubChat({
       const result = await backend.startIntegrationConnection(item);
       await backend.waitForConnectionRefresh(async () => (await count()) > before, result.popup);
       setToast({ title: ar ? `اتربط ${item.name}` : `${item.name} connected`, body: ar ? "الوكيل هيكمل شغله دلوقتي" : "Your bot is continuing" });
-      void s.send(ar ? `ربطت ${item.name}. كمّل الشغل من مكان ما وقفت.` : `I connected ${item.name}. Continue the work from where you stopped.`);
+      void s.sendInternal(`Connection completed for ${item.name}. Verify it with list_connected_accounts and continue the existing task from the saved results; do not redo completed actions.`);
     } catch (error) {
       setToast({ title: ar ? "الربط ما كملش" : "Not connected", body: error instanceof Error ? error.message : "", tone: "error" });
     }
@@ -589,7 +589,7 @@ export function HubChat({
                             if (card.name === "connect_app") return <ConnectAppsCard key={card.id} apps={readConnectApps(d)} title={d.title || d.question} ar={ar} onAuthorize={(app) => void connectInline(app)} />;
                             if (card.name === "wallet_balance") return <WalletBalanceCard key={card.id} data={d} ar={ar} />;
                             if (card.name === "wallet_approval") return <WalletApprovalCard key={card.id} data={d} />;
-                            if (card.name === "integration_approval") return <IntegrationApprovalCard key={card.id} data={d} ar={ar} onDone={() => window.dispatchEvent(new Event("ceyo-action-completed"))} onApproved={(msg) => { void s.send(msg); }} />;
+                            if (card.name === "integration_approval") return <IntegrationApprovalCard key={card.id} data={d} ar={ar} onDone={() => window.dispatchEvent(new Event("ceyo-action-completed"))} onApproved={(msg) => { void s.sendInternal(msg); }} />;
                             if (card.name === "secret" || card.name === "api_key") return <SecretCard key={card.id} name={String(d.name || d.title || "API key")} ar={ar} onOpen={() => nav("/settings/vault")} />;
                             if (card.name === "question" || card.name === "option_picker") {
                               const opts = (Array.isArray(d.options) ? d.options : Array.isArray(d.choices) ? d.choices : []).map((o: any) => typeof o === "string" ? o : String(o?.label ?? o?.name ?? o?.title ?? "")).filter(Boolean);

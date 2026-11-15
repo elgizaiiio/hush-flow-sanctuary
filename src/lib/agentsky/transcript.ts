@@ -295,6 +295,7 @@ function flatten(events: RawEvent[]): Flat[] {
     seen.add(e.id);
     switch (e.type) {
       case "user.message": {
+        if (e.internal) break;
         const u = userText(e.content);
         out.push({ k: "user", id: e.id, text: u.text, images: u.images, at: e.at, voiceOrigin: e.voiceOrigin, recordingId: e.recordingId });
         break;

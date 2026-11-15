@@ -170,7 +170,20 @@ export function useAgentSession(sessionId: string | null, lang: Lang) {
 
   const unqueue = (id: string) => setQueue((q) => q.filter((x) => x.id !== id));
 
+  const sendInternal = useCallback(async (text: string) => {
+    const sid = sidRef.current;
+    if (!sid) return;
+    setError(null);
+    setRunning(true);
+    try { await agentApi.sendInternal(sid, text); }
+    catch (e) {
+      if (sidRef.current !== sid) return;
+      setRunning(false);
+      setError(e instanceof Error ? e.message : "Could not continue the task");
+    }
+  }, []);
+
   const turns = useMemo(() => buildTranscript(events, lang, running), [events, lang, running]);
 
-  return { turns, running, loading, error, queue, unqueue, send, stop, stopping, requests, setRequests };
+  return { turns, running, loading, error, queue, unqueue, send, sendInternal, stop, stopping, requests, setRequests };
 }

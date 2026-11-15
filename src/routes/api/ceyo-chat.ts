@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/ceyo-chat")({ server: { handlers: {
       if (data?.length) lastSeen = data[data.length - 1].created_at;
       for (const message of data || []) {
         const metadata = message.metadata as Record<string, unknown> | null;
-        onSteer?.({ id: message.id, type: "user.message", voiceOrigin: metadata?.voiceOrigin === "recording" ? "recording" : undefined, recordingId: typeof metadata?.recordingId === "string" ? metadata.recordingId : undefined, at: message.created_at, content: [{ type: "text", text: message.content }] });
+        onSteer?.({ id: message.id, type: "user.message", internal: metadata?.internal === true, voiceOrigin: metadata?.voiceOrigin === "recording" ? "recording" : undefined, recordingId: typeof metadata?.recordingId === "string" ? metadata.recordingId : undefined, at: message.created_at, content: [{ type: "text", text: message.content }] });
       }
       return (data || []).map((m) => m.content);
     };
