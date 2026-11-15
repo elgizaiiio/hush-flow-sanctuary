@@ -18,6 +18,11 @@ export function workspaceTools(ctx: Context): AgentTool[] {
   const { db, userId } = ctx;
   const list: AgentTool[] = [];
   const add = (name: string, description: string, props: object, required: string[], run: AgentTool["run"]) => list.push({ name, def: tool(name, description, props, required), run });
+  add("my_telegram_link", "Get a private one-time link connecting this user's Telegram account to this bot. Show it as a named Telegram link and ask them to press Start once. Never ask for an email, password, token or Telegram ID. Link expires in ten minutes.", {}, [], async () => {
+    if (!ctx.botId) throw new Error("Select a bot first");
+    const { createTelegramPairing } = await import("@/lib/channels/pairing.server");
+    return JSON.stringify(await createTelegramPairing(db, userId, ctx.botId));
+  });
   add("calculate", "Evaluate a bounded arithmetic expression accurately. This is a calculator, not Python or shell execution.", { expression: str }, ["expression"], async (args) => {
     const { expression } = z.object({ expression: z.string().min(1).max(500).regex(/^[0-9\s.+\-*/()%]+$/) }).parse(args);
     const result = evaluate(expression);

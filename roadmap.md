@@ -1,8 +1,11 @@
 ## Official messaging channels — 2026-11-15
-- [ ] Store dedicated Telegram/X Chat credentials in service-only Supabase Vault, separate from key administration.
-- [ ] Add single-use owner pairing and isolated bot conversation routing for Telegram.
-- [ ] Verify X Chat's actual encrypted-message contract and implement only supported transport; document missing provider setup.
-- [ ] Run privacy/duplicate-message regressions and live checks; document remaining Instagram/WhatsApp setup.
+- [x] Store dedicated Telegram/X Chat credentials in service-only Supabase Vault, separate from key administration; both provider identities verified live.
+- [x] Add single-use owner pairing and isolated bot conversation routing for Telegram; expose a named pairing link through the app agent.
+- [x] Verify X Chat's encrypted-message contract; document consumer-secret/private-key requirements without adding an unsupported edge adapter.
+- [x] Run 10 privacy/routing regressions, actual public RPC/table-access checks and unsigned webhook rejection; build OK.
+- [ ] Activate and test Telegram pairing/message/app readback end to end — needs deployment of the new endpoint and Telegram webhook registration; not activated in this pass.
+- [ ] X Chat receiving/replies — blocked on X app consumer secret and verified official crypto transport deployment.
+- [ ] Instagram/Facebook/WhatsApp messaging — blocked on owned Meta account authorizations and WhatsApp business number setup.
 
 ## Friendly chat and readable links — 2026-11-15
 - [x] Replace mandatory per-request plans and internal-cost narration with natural, truthful progress.

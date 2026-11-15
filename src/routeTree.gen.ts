@@ -60,6 +60,7 @@ import { Route as ApiPublicRemindersTickRouteImport } from './routes/api/public/
 import { Route as ApiPublicTelegramKeysRouteImport } from './routes/api/public/telegram-keys'
 import { Route as ApiPublicTelnyxVoiceRouteImport } from './routes/api/public/telnyx-voice'
 import { Route as ApiPublicAgentToolsTokenRouteImport } from './routes/api/public/agent-tools.$token'
+import { Route as ApiPublicChannelsTelegramRouteImport } from './routes/api/public/channels/telegram'
 import { Route as ApiPublicMediaStatusRunIdRouteImport } from './routes/api/public/media-status.$runId'
 import { Route as ApiPublicSiteSiteIdRouteImport } from './routes/api/public/site.$siteId'
 import { Route as ApiPublicTgBotDocIdRouteImport } from './routes/api/public/tg-bot.$docId'
@@ -323,6 +324,12 @@ const ApiPublicAgentToolsTokenRoute =
     path: '/api/public/agent-tools/$token',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicChannelsTelegramRoute =
+  ApiPublicChannelsTelegramRouteImport.update({
+    id: '/api/public/channels/telegram',
+    path: '/api/public/channels/telegram',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMediaStatusRunIdRoute =
   ApiPublicMediaStatusRunIdRouteImport.update({
     id: '/api/public/media-status/$runId',
@@ -410,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/api/public/telegram-keys': typeof ApiPublicTelegramKeysRoute
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
+  '/api/public/channels/telegram': typeof ApiPublicChannelsTelegramRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
   '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
   '/api/public/tg-bot/$docId': typeof ApiPublicTgBotDocIdRoute
@@ -469,6 +477,7 @@ export interface FileRoutesByTo {
   '/api/public/telegram-keys': typeof ApiPublicTelegramKeysRoute
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
+  '/api/public/channels/telegram': typeof ApiPublicChannelsTelegramRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
   '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
   '/api/public/tg-bot/$docId': typeof ApiPublicTgBotDocIdRoute
@@ -529,6 +538,7 @@ export interface FileRoutesById {
   '/api/public/telegram-keys': typeof ApiPublicTelegramKeysRoute
   '/api/public/telnyx-voice': typeof ApiPublicTelnyxVoiceRoute
   '/api/public/agent-tools/$token': typeof ApiPublicAgentToolsTokenRoute
+  '/api/public/channels/telegram': typeof ApiPublicChannelsTelegramRoute
   '/api/public/media-status/$runId': typeof ApiPublicMediaStatusRunIdRoute
   '/api/public/site/$siteId': typeof ApiPublicSiteSiteIdRoute
   '/api/public/tg-bot/$docId': typeof ApiPublicTgBotDocIdRoute
@@ -590,6 +600,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram-keys'
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
+    | '/api/public/channels/telegram'
     | '/api/public/media-status/$runId'
     | '/api/public/site/$siteId'
     | '/api/public/tg-bot/$docId'
@@ -649,6 +660,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram-keys'
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
+    | '/api/public/channels/telegram'
     | '/api/public/media-status/$runId'
     | '/api/public/site/$siteId'
     | '/api/public/tg-bot/$docId'
@@ -708,6 +720,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram-keys'
     | '/api/public/telnyx-voice'
     | '/api/public/agent-tools/$token'
+    | '/api/public/channels/telegram'
     | '/api/public/media-status/$runId'
     | '/api/public/site/$siteId'
     | '/api/public/tg-bot/$docId'
@@ -768,6 +781,7 @@ export interface RootRouteChildren {
   ApiPublicTelegramKeysRoute: typeof ApiPublicTelegramKeysRoute
   ApiPublicTelnyxVoiceRoute: typeof ApiPublicTelnyxVoiceRoute
   ApiPublicAgentToolsTokenRoute: typeof ApiPublicAgentToolsTokenRoute
+  ApiPublicChannelsTelegramRoute: typeof ApiPublicChannelsTelegramRoute
   ApiPublicMediaStatusRunIdRoute: typeof ApiPublicMediaStatusRunIdRoute
   ApiPublicSiteSiteIdRoute: typeof ApiPublicSiteSiteIdRoute
   ApiPublicTgBotDocIdRoute: typeof ApiPublicTgBotDocIdRoute
@@ -1135,6 +1149,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAgentToolsTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/channels/telegram': {
+      id: '/api/public/channels/telegram'
+      path: '/api/public/channels/telegram'
+      fullPath: '/api/public/channels/telegram'
+      preLoaderRoute: typeof ApiPublicChannelsTelegramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/media-status/$runId': {
       id: '/api/public/media-status/$runId'
       path: '/api/public/media-status/$runId'
@@ -1232,6 +1253,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTelegramKeysRoute: ApiPublicTelegramKeysRoute,
   ApiPublicTelnyxVoiceRoute: ApiPublicTelnyxVoiceRoute,
   ApiPublicAgentToolsTokenRoute: ApiPublicAgentToolsTokenRoute,
+  ApiPublicChannelsTelegramRoute: ApiPublicChannelsTelegramRoute,
   ApiPublicMediaStatusRunIdRoute: ApiPublicMediaStatusRunIdRoute,
   ApiPublicSiteSiteIdRoute: ApiPublicSiteSiteIdRoute,
   ApiPublicTgBotDocIdRoute: ApiPublicTgBotDocIdRoute,
