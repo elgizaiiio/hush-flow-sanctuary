@@ -1,3 +1,8 @@
+## Stuck background task — 2026-11-15
+- [x] Run long tasks live in the chat reply with all tools instead of a detached worker.
+- [x] Heartbeat saved tasks; close silent ones with a one-time chat note.
+- [ ] Re-run the book-store task end to end from the user's chat (needs the user to send «كمل»).
+
 ## Approval continuation and browser stability — 2026-11-15
 - [x] Hide internal approval/connection follow-ups in live and saved chat while retaining model context.
 - [x] Match approval cards to connect cards; collapse completed approvals to muted app name/icon.
