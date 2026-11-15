@@ -7,6 +7,7 @@
 import { runAgentLoop } from "./agentLoop.server";
 import type { LoopEvent } from "./agentLoop.server";
 import { needsBrowserLogin } from "./taskOutcome";
+import { JOB_SILENCE_LIMIT_MS } from "./jobHealth";
 
 export function backgroundReady(): boolean {
   return Boolean(process.env.LOVABLE_CRON_SECRET);
@@ -32,9 +33,16 @@ export async function runJob(jobId: string): Promise<string> {
   };
   try {
     const transcript: LoopEvent[] = [];
+    // Heartbeat: the chat treats a silent running task as stopped.
+    let beatAt = Date.now();
+    const beat = () => {
+      if (Date.now() - beatAt < 30_000) return;
+      beatAt = Date.now();
+      void db.from("agent_jobs").update({ status: "running" }).eq("id", job.id).eq("status", "running").then(() => undefined, () => undefined);
+    };
     const text = await runAgentLoop(
       job.system_prompt + "\nComplete this background task and export produced files. Only perform account actions explicitly authorized in the user's goal. If login is required, hand off and stop. No workspace or integration API actions are available; do not claim them.",
-      [{ role: "user", content: job.goal }], (event) => { if (event.type !== "agent.reasoning") transcript.push(event); }, AbortSignal.timeout(8 * 60000), poll, { usageOwner: job.user_id, botId: job.bot_id, maxSteps: 40 },
+      [{ role: "user", content: job.goal }], (event) => { beat(); if (event.type !== "agent.reasoning") transcript.push(event); }, AbortSignal.timeout(8 * 60000), poll, { usageOwner: job.user_id, botId: job.bot_id, maxSteps: 40 },
     );
     if (!text.trim()) throw new Error("No completed answer");
     const { error } = await db.from("messages").upsert(
@@ -62,7 +70,7 @@ export async function runJob(jobId: string): Promise<string> {
 export async function runStaleJobs(): Promise<{ id: string; status: string }[]> {
   const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
   // Never blindly replay abandoned work: an external side effect may have happened.
-  const expired = new Date(Date.now() - 15 * 60_000).toISOString();
+  const expired = new Date(Date.now() - JOB_SILENCE_LIMIT_MS).toISOString();
   const { error: recoveryError } = await db.from("agent_jobs").update({ status: "failed", error: "Task interrupted. Review any delivered result before starting it again." }).eq("status", "running").lt("updated_at", expired);
   if (recoveryError) throw new Error("Could not recover interrupted tasks");
   const before = new Date(Date.now() - 60_000).toISOString();
