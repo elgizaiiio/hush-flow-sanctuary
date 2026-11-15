@@ -636,6 +636,133 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_deliveries: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          identity_id: string
+          platform: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          identity_id: string
+          platform: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          identity_id?: string
+          platform?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_deliveries_identity_id_fkey"
+            columns: ["identity_id"]
+            isOneToOne: false
+            referencedRelation: "channel_identities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_identities: {
+        Row: {
+          bot_id: string
+          conversation_id: string | null
+          created_at: string
+          external_user_id: string
+          id: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          conversation_id?: string | null
+          created_at?: string
+          external_user_id: string
+          id?: string
+          platform: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          external_user_id?: string
+          id?: string
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_identities_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_identities_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_pairings: {
+        Row: {
+          bot_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          platform: string
+          token_hash: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          platform: string
+          token_hash: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          platform?: string
+          token_hash?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_pairings_bot_id_fkey"
+            columns: ["bot_id"]
+            isOneToOne: false
+            referencedRelation: "bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           bot_id: string | null
@@ -1747,6 +1874,14 @@ export type Database = {
         }
         Returns: string
       }
+      consume_channel_pairing: {
+        Args: {
+          p_external_user: string
+          p_platform: string
+          p_token_hash: string
+        }
+        Returns: string
+      }
       create_people_group: {
         Args: { p_bot_ids: string[]; p_name: string; p_usernames: string[] }
         Returns: string
@@ -1785,6 +1920,7 @@ export type Database = {
       platform_touch_key_limits: { Args: { p_key_id: string }; Returns: Json }
       platform_user_entitlement: { Args: { p_user_id: string }; Returns: Json }
       read_agentsky_api_key: { Args: never; Returns: string }
+      read_channel_credential: { Args: { p_name: string }; Returns: string }
       read_telegram_bot_token: { Args: never; Returns: string }
       reserve_free_video_call_minute: { Args: never; Returns: Json }
       save_bot_group: {
@@ -1831,6 +1967,10 @@ export type Database = {
         Returns: boolean
       }
       store_agentsky_api_key: { Args: { p_key: string }; Returns: undefined }
+      store_channel_credential: {
+        Args: { p_name: string; p_value: string }
+        Returns: undefined
+      }
       store_telegram_bot_token: {
         Args: { p_token: string }
         Returns: undefined
