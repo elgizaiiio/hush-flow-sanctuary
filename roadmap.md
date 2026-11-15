@@ -532,3 +532,6 @@
 - [x] Read the user's Telegram messages: hosted bots save everything they receive (personal chats via Telegram Business, admin groups/channels) and the agent reads them with read_telegram_messages (simulated business message read back by the agent; real Telegram Business link not yet done by the owner)
 - [x] Fix the agent's general behavior on any task (not just Telegram): plain-language prompt rewrite, deeper thinking, retry when it asks for technical IDs, switch source on blocked sites, always deliver before the step limit, ignore null tool args, publish_website for live pages (live tests: Excel price comparison delivered, store page published)
 - [ ] Big tasks are slow: the current Cerebras key is free tier (5 requests/min, 30k tokens/min, 150/hour) — a 20-step task takes ~6 min. Blocked on the owner upgrading the Cerebras plan.
+
+## Apify credential — 2026-11-15
+- [x] Store the supplied Apify credential in the existing server-only provider pool and verify restricted access; do not link a Lovable connector. Server read-back confirms active status; public read is blocked. No Apify tools or paid Actor runs added in this credential-only pass.
