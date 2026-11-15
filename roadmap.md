@@ -1,3 +1,9 @@
+## Official messaging channels — 2026-11-15
+- [ ] Store dedicated Telegram/X Chat credentials in service-only Supabase Vault, separate from key administration.
+- [ ] Add single-use owner pairing and isolated bot conversation routing for Telegram.
+- [ ] Verify X Chat's actual encrypted-message contract and implement only supported transport; document missing provider setup.
+- [ ] Run privacy/duplicate-message regressions and live checks; document remaining Instagram/WhatsApp setup.
+
 ## Friendly chat and readable links — 2026-11-15
 - [x] Replace mandatory per-request plans and internal-cost narration with natural, truthful progress.
 - [x] Separate agent progress messages and display readable links with site icons in both sides of chat.
