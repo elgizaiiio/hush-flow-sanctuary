@@ -338,7 +338,7 @@ export function HubChat({
       const result = await backend.startIntegrationConnection(item);
       await backend.waitForConnectionRefresh(async () => (await count()) > before, result.popup);
       setToast({ title: ar ? `اتربط ${item.name}` : `${item.name} connected`, body: ar ? "الوكيل هيكمل شغله دلوقتي" : "Your bot is continuing" });
-      void s.sendInternal(`Connection completed for ${item.name}. Verify it with list_connected_accounts and continue the existing task from the saved results; do not redo completed actions.`);
+      void s.sendInternal(ar ? `اتربط ${item.name}. اتأكد من الحساب وكمّل الطلب الأصلي من النتائج المحفوظة من غير إعادة الخطوات اللي خلصت.` : `Connection completed for ${item.name}. Verify the account and continue the existing task from saved results; do not redo completed actions.`);
     } catch (error) {
       setToast({ title: ar ? "الربط ما كملش" : "Not connected", body: error instanceof Error ? error.message : "", tone: "error" });
     }

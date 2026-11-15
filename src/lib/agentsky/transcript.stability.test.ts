@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { buildTranscript } from "./transcript";
 
 describe("single active agent turn", () => {
+  it("does not display internal continuation events", () => {
+    const turns = buildTranscript([
+      { id: "goal", type: "user.message", content: [{ type: "text", text: "Upload my repository" }] },
+      { id: "approval", type: "user.message", internal: true, content: [{ type: "text", text: "I approved the GitHub action. Continue." }] },
+    ], "en", false);
+    expect(turns.filter((t) => t.type === "user")).toHaveLength(1);
+    expect(turns[0]).toMatchObject({ text: "Upload my repository" });
+  });
   it("retains an owner document reference from the save_file result", () => {
     const turns = buildTranscript([{ id: "result", type: "agent.tool_result", part: { type: "tool_result", call_id: "save1", tool_name: "save_file", status: "ok", result: JSON.stringify({ type: "ceyo.file", id: "doc1", name: "report.txt" }) } }], "en", false);
     expect(turns.flatMap((turn) => turn.type === "agent" ? turn.cards : [])).toContainEqual({ kind: "file", id: "doc1", name: "report.txt" });

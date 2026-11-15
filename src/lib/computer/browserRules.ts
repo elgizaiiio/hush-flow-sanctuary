@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+/** Disconnecting one control client must not destroy the remote task session. */
+export const browserSessionLifetime = { timeout: 600, keepAlive: true };
+/** Never replay an action which may already have changed the account. */
+export function canRetryBrowserRead(action: string, error: string) {
+  return ["read", "look"].includes(action) && /closed|disconnect|ECONNRESET|websocket|connect_over_cdp/i.test(error);
+}
+
 export const browserAction = z.object({
   action: z.enum(["navigate", "read", "click", "fill", "press", "login", "look", "show_user", "click_at", "type_text"]),
   x: z.number().int().min(0).max(4000).optional(),

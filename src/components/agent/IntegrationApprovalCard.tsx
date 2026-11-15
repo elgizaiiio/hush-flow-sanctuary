@@ -21,23 +21,27 @@ export function IntegrationApprovalCard({ data, onDone, onApproved, ar = false }
   useEffect(() => { void read({ data: { id: String(data.id) } }).then((r) => setStatus(r.status)).catch(() => {}); }, [data.id, read]);
   const item = findApp(String(data.app || "app"));
   const action = human(String(data.action || ""), item.app);
-  const args = Object.entries((data.arguments || {}) as Record<string, unknown>).filter(([, v]) => v !== null && v !== "" && typeof v !== "object").slice(0, 4);
+  const description = typeof data.description === "string" ? data.description : action;
   const decide = async (approved: boolean, always = false) => {
     setStatus("running"); setError("");
     try {
       const result = await approve({ data: { id: String(data.id), approved, always } });
       setStatus(result.status); onDone();
       if (approved && result.status === "completed") onApproved?.(ar ? `وافقت على "${action}" في ${item.name} واتنفذت. كمّل الشغل من الخطوة اللي وقفت عندها بالظبط، من غير ما تعيد اللي خلص.` : `I approved "${action}" on ${item.name} and it ran. Continue from the exact step you stopped at without redoing finished steps.`);
-    } catch (e) { setStatus("failed"); setError(e instanceof Error ? e.message : "Action failed"); }
+    } catch { setStatus("failed"); setError(ar ? "التنفيذ ما كملش؛ راجع النتيجة قبل المحاولة تاني." : "The action did not finish. Check its result before trying again."); }
   };
+  if (status === "completed" || status === "rejected") return (
+    <div className="cx-card apcard-compact" dir="auto" aria-label={status === "completed" ? (ar ? "تمت الموافقة" : "Approved") : (ar ? "مرفوض" : "Declined")}>
+      <span className="cx-app-logo"><IntegrationLogo item={item} size={24} /></span><b>{item.name}</b>
+    </div>
+  );
   return (
-    <div className="apcard" dir="auto">
-      <div className="apcard-head">
-        <span className="apcard-logo"><IntegrationLogo item={item} size={32} /></span>
-        <span className="apcard-title"><strong>{ar ? `${item.name} محتاج موافقتك` : `${item.name} needs your OK`}</strong><small>{String(data.account || "")}</small></span>
+    <div className="cx-card apcard" dir="auto">
+      <div className="cx-app-row">
+        <span className="cx-app-logo"><IntegrationLogo item={item} size={36} /></span>
+        <span className="cx-app-text"><b>{item.name}</b><small>{ar ? "محتاج موافقتك" : "Needs your approval"}</small></span>
       </div>
-      <p className="apcard-action">{action}</p>
-      {args.length > 0 && <dl className="apcard-args">{args.map(([k, v]) => <div key={k}><dt>{k.replace(/_/g, " ")}</dt><dd>{String(v).slice(0, 120)}</dd></div>)}</dl>}
+      <p className="apcard-action">{description}</p>
       {status === "pending" ? (
         <div className="apcard-actions">
           <Button size="sm" onClick={() => void decide(true)}><Check />{ar ? "موافق" : "Allow"}</Button>

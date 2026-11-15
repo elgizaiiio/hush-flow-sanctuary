@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { normalizeChatHistory } from "./chatHistory";
 describe("chat history", () => {
+  it("retains hidden approval context and actual results for continuation", () => {
+    expect(normalizeChatHistory([
+      { role: "user", content: "Continue", metadata: { internal: true } },
+      { role: "assistant", content: "Action completed", metadata: { internal: true, action_result: "archive ready" } },
+    ])).toEqual([{ role: "assistant", content: "Action completed\nResult: archive ready" }, { role: "user", content: "Continue" }]);
+  });
   it("keeps the latest user goal last and removes internal speaker markers", () => {
     expect(normalizeChatHistory([{ role: "user", content: "Calculate 2+3" }, { role: "assistant", content: "[[speaker: Writer]]\nOld reply" }])).toEqual([{ role: "assistant", content: "Old reply" }, { role: "user", content: "Calculate 2+3" }]);
   });

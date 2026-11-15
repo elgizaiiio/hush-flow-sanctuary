@@ -61,7 +61,7 @@ export const integrationApproval = createServerFn({ method: "POST" })
     }
     const { error: writeError } = await supabaseAdmin.from("agent_action_requests").update({ status: "completed", result }).eq("id", pending.id).eq("user_id", userId);
     if (writeError) throw new Error("The action ran, but its receipt could not be saved. Do not repeat the action.");
-    const { error: deliveryError } = await db.from("messages").upsert({ id: pending.id, user_id: userId, conversation_id: pending.conversation_id, role: "assistant", content: `✓ ${pending.tool_slug.replace(/_/g, " ").toLowerCase()}`, metadata: { action_id: pending.id, action_result: JSON.stringify(result.data || result).slice(0, 4000) } }, { onConflict: "id", ignoreDuplicates: true });
+    const { error: deliveryError } = await db.from("messages").upsert({ id: pending.id, user_id: userId, conversation_id: pending.conversation_id, role: "assistant", content: `✓ ${pending.tool_slug.replace(/_/g, " ").toLowerCase()}`, metadata: { internal: true, action_id: pending.id, action_result: JSON.stringify(result.data || result).slice(0, 4000) } }, { onConflict: "id", ignoreDuplicates: true });
     if (deliveryError) throw new Error("The action completed, but its chat receipt could not be saved.");
     return { status: "completed" };
   });

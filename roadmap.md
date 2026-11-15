@@ -1,8 +1,9 @@
 ## Approval continuation and browser stability — 2026-11-15
-- [ ] Hide internal approval/connection follow-ups in live and saved chat while retaining model context.
-- [ ] Match approval cards to connect cards; collapse completed approvals to muted app name/icon.
-- [ ] Keep cloud browser alive between controls; verify repeated real browser actions.
-- [ ] Run focused regressions and document authenticated-flow verification limits.
+- [x] Hide internal approval/connection follow-ups in live and saved chat while retaining model context.
+- [x] Match approval cards to connect cards; collapse completed approvals to muted app name/icon.
+- [x] Keep cloud browser alive between controls; verified three consecutive real reads in Akoya's browser.
+- [x] Run focused regressions and document authenticated-flow verification limits.
+- [ ] Real signed-in approval/OAuth continuation: managed session unavailable for external_unmanaged; not verified in the UI.
 
 ## Chat polish batch — 2026-11-14
 - [x] Thinking line follows the bot's real step, in the user's language.

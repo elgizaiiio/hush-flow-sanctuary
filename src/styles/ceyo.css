@@ -820,6 +820,12 @@ html[data-ceyo-surface="bot"] .agent-hub.ceyo-page{--ceyo-page-bg:#1b1b20;--ceyo
 .apcard-action{margin:12px 0 4px;font-size:15px;font-weight:600}
 .apcard-args{display:grid;gap:4px;margin:6px 0 4px;font-size:13px}.apcard-args div{display:flex;gap:8px}.apcard-args dt{color:hsl(var(--muted-foreground));text-transform:capitalize;flex:none}.apcard-args dd{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .apcard-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.cx-card.apcard{background:var(--cx-card);color:var(--foreground);padding:6px;border-color:var(--cx-line)}
+.cx-card.apcard .apcard-action{margin:4px 10px 12px;font-size:14px;font-weight:400;overflow-wrap:anywhere}
+.cx-card.apcard .apcard-actions{margin:0 10px 10px;gap:6px}
+.cx-card.apcard .apcard-status{margin:10px}
+.cx-card.apcard-compact{display:inline-flex;align-items:center;gap:8px;width:auto;padding:8px 12px;opacity:.6;filter:saturate(.5);font-size:13px;border-radius:12px}
+.apcard-compact .cx-app-logo{width:26px;height:26px;flex:none}
 .apcard-status{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:hsl(var(--muted-foreground))}.apcard-status[data-status=completed]{color:hsl(var(--primary))}
 .wcard-head{display:flex;align-items:center;gap:8px;font-size:13px;color:hsl(var(--muted-foreground))}
 .wcard-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:hsl(var(--muted));color:hsl(var(--foreground))}
