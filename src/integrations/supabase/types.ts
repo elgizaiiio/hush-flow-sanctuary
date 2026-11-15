@@ -1921,6 +1921,7 @@ export type Database = {
       platform_user_entitlement: { Args: { p_user_id: string }; Returns: Json }
       read_agentsky_api_key: { Args: never; Returns: string }
       read_channel_credential: { Args: { p_name: string }; Returns: string }
+      read_runtime_credential: { Args: { p_name: string }; Returns: string }
       read_telegram_bot_token: { Args: never; Returns: string }
       reserve_free_video_call_minute: { Args: never; Returns: Json }
       save_bot_group: {
@@ -1968,6 +1969,10 @@ export type Database = {
       }
       store_agentsky_api_key: { Args: { p_key: string }; Returns: undefined }
       store_channel_credential: {
+        Args: { p_name: string; p_value: string }
+        Returns: undefined
+      }
+      store_runtime_credential: {
         Args: { p_name: string; p_value: string }
         Returns: undefined
       }

@@ -1,10 +1,12 @@
 ## Independence from Lovable — 2026-11-15
-- [ ] Audit active runtime/hosting/scheduler/media/email/GitHub dependencies; remove replaceable Lovable dependencies and verify external Supabase storage.
-- [ ] Verify independent deployment and scheduled callback before account deletion; report any provider/hosting authorization blockers.
+- [x] Audit dependencies; migrate original scheduler signing value into external Supabase Vault with private read-back; runtime uses Vault only. Replace composer gateway transcription and direct-only GitHub transport; remove Lovable defaults for new callbacks.
+- [ ] Verify independent deployment and scheduled callback before account deletion — needs deployment access/current source on independent host and direct GitHub authorization to update scheduler address.
+- [ ] Independent transactional email and coding-agent GitHub authorization — SMTP/direct GitHub credentials unavailable; unused managed-mail helper remains, native Auth SMTP fresh read-back unverified.
+- [ ] Re-register existing external callbacks pointing to Lovable — needs verified deployed handlers and original authorized provider credentials. X encrypted execution remains separate unfinished work.
 
 ## Official messaging channels — 2026-11-15
 - [x] Audit Lovable secret listing; delete unused Telegram copy after confirming external Vault transport. Supplied X app credentials saved only in external Supabase with service-only permissions.
-- [ ] Move existing scheduler credential dependency — Lovable marks LOVABLE_CRON_SECRET undeletable; coordinated scheduler/runtime replacement is needed, not performed here. LOVABLE_API_KEY is platform-managed, not application data.
+- [x] Copy original scheduler credential into external Supabase Vault and use Vault-only runtime reads. Old Lovable-managed copy cannot be deleted; scheduler destination still needs independent-host deployment/reconfiguration above.
 - [x] Add/test edge-compatible X CRC and signature checks; actual local challenge 200 and unsigned POST 401. Encrypted messages fail closed; no webhook registration or reply activation claimed.
 - [x] Store dedicated Telegram/X Chat credentials in service-only Supabase Vault, separate from key administration; both provider identities verified live.
 - [x] Add single-use owner pairing and isolated bot conversation routing for Telegram; expose a named pairing link through the app agent.

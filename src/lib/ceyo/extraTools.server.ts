@@ -69,7 +69,8 @@ export function extraTools(ctx?: { db: SupabaseClient; userId: string; origin?: 
     const tokenSchema = z.string().regex(/^\d+:[A-Za-z0-9_-]{20,}$/, "Invalid bot token");
     add("host_telegram_bot", "Run the user's Telegram bot 24/7 on Ceyo's server (no routine, no user server). mode 'ai_chat' answers every message with AI using persona; 'auto_reply' sends fixed replies. Always set start_text (the /start welcome). Re-run to change texts. Everything the bot receives (its own chats, groups/channels where it is admin, and the user's personal chats once they link it to their account via Telegram Business) is saved for read_telegram_messages. business_reply=true lets it answer people in the user's personal chats — only when the user asked for that. It self-tests and returns the bot link: give the user https://t.me/<username> and tell them to press Start — never ask for chat_id.", { business_reply: { type: "boolean", description: "Answer people in the user's personal chats (Telegram Business). Default false = only read them." }, token: str, mode: { type: "string", enum: ["ai_chat", "auto_reply"] }, start_text: str, persona: { type: "string", description: "Who the bot is and how it answers (ai_chat)" }, default_reply: { type: "string", description: "Reply for other messages (auto_reply) or when AI is unavailable" }, commands: { type: "array", items: { type: "object", properties: { command: str, description: str, reply: str }, required: ["command", "description"] } } }, ["token", "start_text"], async (args) => {
       const input = z.object({ token: tokenSchema, mode: z.enum(["ai_chat", "auto_reply"]).default("ai_chat"), start_text: z.string().min(1).max(4000), persona: z.string().max(4000).optional(), default_reply: z.string().max(4000).optional(), commands: z.array(z.object({ command: z.string().transform((c) => c.replace(/^\//, "").toLowerCase()), description: z.string().min(1).max(256), reply: z.string().max(4000).optional() })).max(30).optional(), business_reply: z.boolean().default(false) }).parse(args);
-      const secret = process.env.LOVABLE_CRON_SECRET;
+      const { schedulerSecret } = await import("./runtimeCredentials.server");
+      const secret = await schedulerSecret();
       if (!secret) throw new Error("Bot hosting is not configured on this server");
       const me = (await tg(input.token, "getMe")) as { id: number; username: string; first_name?: string };
       const cfg = hostedBotConfig.parse({ v: 1, bot_id: me.id, username: me.username, mode: input.mode, start_text: input.start_text, persona: input.persona, default_reply: input.default_reply, business_reply: input.business_reply, commands: (input.commands || []).filter((c) => c.command !== "start") });
@@ -85,9 +86,11 @@ export function extraTools(ctx?: { db: SupabaseClient; userId: string; origin?: 
         if (error) throw new Error(error.message);
         docId = data.id as string;
       }
-      const origin = publicHookOrigin(ctx.origin || "http://localhost", process.env.APP_URL || "https://project--31d71057-3c67-417c-ae8b-2c7341705a52-dev.lovable.app");
+      const { independentAppOrigin } = await import("./runtimeConfig");
+      const origin = independentAppOrigin(process.env.APP_URL || process.env.PUBLIC_APP_URL || "https://web.ceyo.si");
       const url = `${origin}${HOOK_PATH}${docId}`;
-      const secretToken = await hostedBotSecret(secret, docId!);
+      if (!docId) throw new Error("Bot configuration unavailable");
+      const secretToken = await hostedBotSecret(secret, docId);
       await tg(input.token, "setWebhook", { url, secret_token: secretToken, allowed_updates: HOSTED_UPDATES, drop_pending_updates: false });
       await tg(input.token, "setMyCommands", { commands: [{ command: "start", description: "Start" }, ...cfg.commands.map(({ command, description }) => ({ command, description }))] });
       // Self-test: send our own webhook a fake /start and check that it answers.
@@ -130,7 +133,8 @@ export function extraTools(ctx?: { db: SupabaseClient; userId: string; origin?: 
         if (error) throw new Error(error.message);
         id = data.id as string;
       }
-      const origin = publicHookOrigin(ctx.origin || "http://localhost", process.env.APP_URL || "https://project--31d71057-3c67-417c-ae8b-2c7341705a52-dev.lovable.app");
+      const { independentAppOrigin } = await import("./runtimeConfig");
+      const origin = independentAppOrigin(process.env.APP_URL || process.env.PUBLIC_APP_URL || "https://web.ceyo.si");
       const url = `${origin}/api/public/site/${id}`;
       const check = await fetch(url).then((r) => r.status).catch(() => 0);
       return JSON.stringify({ published: check === 200, url, site_id: id, note: check === 200 ? "Live now. Give the user this link." : `Saved, but the link answered HTTP ${check}; it may need a moment.` });

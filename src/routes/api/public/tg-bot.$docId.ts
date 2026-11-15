@@ -9,7 +9,8 @@ const personName = (p?: { first_name?: string; last_name?: string; username?: st
 // Telegram calls this for every update to a hosted bot. Updates are saved to the owner's inbox so the agent can read them;
 // replies go back in the webhook response, so no bot token is stored.
 export const Route = createFileRoute("/api/public/tg-bot/$docId")({ server: { handlers: { POST: async ({ params, request }) => {
-  const secret = process.env.LOVABLE_CRON_SECRET;
+  const { schedulerSecret } = await import("@/lib/ceyo/runtimeCredentials.server");
+  const secret = await schedulerSecret().catch(() => null);
   if (!secret || !z.string().uuid().safeParse(params.docId).success) return new Response("Not found", { status: 404 });
   const hosting = await import("@/lib/ceyo/telegramHosting");
   const { sameSignature } = await import("@/lib/ceyo/routineHook");

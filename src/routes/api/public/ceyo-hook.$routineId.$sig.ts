@@ -3,7 +3,8 @@ import { z } from "zod";
 
 // External services (Shopify, forms, Zapier...) POST here to run a routine immediately instead of waiting for the 5-minute tick.
 export const Route = createFileRoute("/api/public/ceyo-hook/$routineId/$sig")({ server: { handlers: { POST: async ({ params, request }) => {
-  const secret = process.env.LOVABLE_CRON_SECRET;
+  const { schedulerSecret } = await import("@/lib/ceyo/runtimeCredentials.server");
+  const secret = await schedulerSecret().catch(() => null);
   if (!secret || !z.string().uuid().safeParse(params.routineId).success) return new Response("Not found", { status: 404 });
   const { routineHookSignature, sameSignature } = await import("@/lib/ceyo/routineHook");
   if (!sameSignature(await routineHookSignature(secret, params.routineId), params.sig)) return new Response("Not found", { status: 404 });

@@ -1,7 +1,7 @@
 /** @doc Server-only private GitHub persistence for Dev Agent projects. */
 import type { DevWorkspace } from "./tools";
+import { runtimeCredential } from "@/lib/ceyo/runtimeCredentials.server";
 
-const GATEWAY = "https://connector-gateway.lovable.dev/github";
 const DIRECT = "https://api.github.com";
 
 type GithubRepo = { full_name: string; default_branch?: string };
@@ -11,25 +11,18 @@ type GithubTree = { sha?: string; tree?: Array<{ path?: string; type?: string; s
 type GithubBlob = { content?: string; encoding?: string };
 
 /**
- * Prefers a direct GitHub PAT (GITHUB_TOKEN) so storage runs entirely on our own
- * credentials. Falls back to the connector gateway only if no PAT is configured.
+ * Uses an owner-held direct GitHub credential only; never a Lovable connection.
  */
-function transport(): { base: string; headers: Record<string, string> } {
-  const pat = process.env.GITHUB_TOKEN;
+async function transport(): Promise<{ base: string; headers: Record<string, string> }> {
+  const pat = await runtimeCredential("CEYO_GITHUB_TOKEN") || process.env.GITHUB_TOKEN;
   if (pat) {
     return { base: DIRECT, headers: { Authorization: `Bearer ${pat}` } };
   }
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  const githubKey = process.env.GITHUB_API_KEY;
-  if (!lovableKey || !githubKey) throw new Error("Central GitHub storage is not configured");
-  return {
-    base: GATEWAY,
-    headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": githubKey },
-  };
+  throw new Error("Independent GitHub storage is not configured");
 }
 
 async function github<T>(path: string, init: RequestInit = {}, allowNotFound = false): Promise<T | null> {
-  const { base, headers } = transport();
+  const { base, headers } = await transport();
   const response = await fetch(`${base}${path}`, {
     ...init,
     headers: {

@@ -8,9 +8,10 @@ import { runAgentLoop } from "./agentLoop.server";
 import type { LoopEvent } from "./agentLoop.server";
 import { needsBrowserLogin } from "./taskOutcome";
 import { JOB_SILENCE_LIMIT_MS } from "./jobHealth";
+import { schedulerSecret } from "./runtimeCredentials.server";
 
-export function backgroundReady(): boolean {
-  return Boolean(process.env.LOVABLE_CRON_SECRET);
+export async function backgroundReady(): Promise<boolean> {
+  return Boolean(await schedulerSecret());
 }
 
 export async function runJob(jobId: string): Promise<string> {
@@ -83,7 +84,7 @@ export async function runStaleJobs(): Promise<{ id: string; status: string }[]> 
 }
 
 export async function startLongTask(payload: { origin: string; system: string; goal: string; userId: string; conversationId: string; botId: string | null; cursorAt: string }): Promise<string> {
-  const secret = process.env.LOVABLE_CRON_SECRET;
+  const secret = await schedulerSecret();
   if (!secret) throw new Error("Background jobs are not configured");
   const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
   const { data: conv } = await db.from("conversations").select("id").eq("id", payload.conversationId).eq("user_id", payload.userId).maybeSingle();

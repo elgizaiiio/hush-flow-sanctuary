@@ -4,23 +4,29 @@ Run with --apply after reviewing the live callback. Environment credentials only
 import argparse
 import base64
 import os
-import requests
-from nacl.public import PublicKey, SealedBox
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--apply', action='store_true')
 args = parser.parse_args()
-origin = 'https://hush-and-flow-studio.lovable.app'
+if not args.apply:
+    print('Dry run; no changes. Apply requires the independent app deployment, direct GitHub token and migrated scheduler secret.')
+    raise SystemExit(0)
+import requests
+from nacl.public import PublicKey, SealedBox
+origin = os.environ.get('APP_URL', 'https://web.ceyo.si').rstrip('/')
+from urllib.parse import urlparse
+host = urlparse(origin)
+if host.scheme != 'https' or not host.hostname or host.hostname.endswith(('.lovable.app', '.lovable.dev')) or host.username or host.password:
+    raise RuntimeError('Use an independent HTTPS application address.')
 repo = '/repos/elgizaiiio/ceyo-private-scheduler'
-secret = os.environ['LOVABLE_CRON_SECRET']
+secret = os.environ['CEYO_CRON_SECRET']
 headers = {
-    'Authorization': 'Bearer ' + os.environ['LOVABLE_API_KEY'],
-    'X-Connection-Api-Key': os.environ['GITHUB_API_KEY'],
+    'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN'],
     'Accept': 'application/vnd.github+json',
 }
 
 def github(method, path, body=None):
-    response = requests.request(method, 'https://connector-gateway.lovable.dev/github' + repo + path,
+    response = requests.request(method, 'https://api.github.com' + repo + path,
                                 headers=headers, json=body, timeout=60)
     if not response.ok:
         raise RuntimeError('Scheduler configuration refused: HTTP ' + str(response.status_code))
