@@ -1,4 +1,5 @@
 - Bots, chats and messages live in the new database tables; the browser `agentApi` keeps its old shape so screens did not change. Why: removes the old bot server without rewriting the UI.
+- Transcript text streams retain separate message segments alongside combined text; both chat sides use safe icon links with descriptive labels and title fallback. Why: progress stays readable without breaking saved history or leaking private URLs to metadata services.
 - Bot replies run through `/api/ceyo-chat` (Cerebras loop with Browserbase web tools); it saves the answer with the caller's sign-in. Why: fast replies, real web access, no service-role key.
 - Guided agent creation stays in the existing chat, renders a validated propose_agent card and creates only on an explicit user click. Why: clarify requirements without autonomous agent creation.
 - start_long_task runs inside the live `/api/ceyo-chat` reply with the full tool set; `backgroundJobs.server.ts` jobs (scheduler only) send a heartbeat and `/api/ceyo-task` closes silent ones with a one-time chat note. Why: a fire-and-forget worker is stopped when the reply ends, leaving tasks stuck as running.

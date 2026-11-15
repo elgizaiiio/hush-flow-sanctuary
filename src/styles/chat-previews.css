@@ -1,3 +1,8 @@
+.cx-named-link { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; vertical-align: middle; color: var(--primary); text-decoration: none; border-bottom: 1px solid var(--border); }
+.cx-named-link span { overflow-wrap: anywhere; }
+.cx-named-link img, .cx-named-link svg { flex-shrink: 0; }
+.cx-named-link img { width: 16px; height: 16px; object-fit: contain; }
+
 .chat-file-preview,.chat-media-creator{border:1px solid var(--cv-line);border-radius:8px;background:var(--cv-pricing-panel);color:var(--cv-ink);width:100%;max-width:520px;margin:10px 0;overflow:hidden}
 .chat-file-open{width:100%;justify-content:flex-start;text-align:start;padding:12px;height:auto;min-height:48px}.chat-file-open span{flex:1;overflow-wrap:anywhere;min-width:0}
 .chat-file-tools{display:flex;justify-content:flex-end;border-bottom:1px solid var(--cv-line)}

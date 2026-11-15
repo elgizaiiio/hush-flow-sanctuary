@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { buildTranscript } from "./transcript";
 
 describe("single active agent turn", () => {
+  it("keeps separate progress messages while reconciling chunks of the same message", () => {
+    const turns = buildTranscript([
+      { id: "first", type: "agent.message", parts: [{ type: "text", text: "Checking ", stream_id: "one" }] },
+      { id: "first-chunk", type: "agent.message", parts: [{ type: "text", text: "the page.", stream_id: "one" }] },
+      { id: "second", type: "agent.message", parts: [{ type: "text", text: "Found the result.", stream_id: "two" }] },
+    ], "en", false);
+    const turn = turns.find((t) => t.type === "agent");
+    expect(turn?.type === "agent" ? turn.messages : []).toEqual(["Checking the page.", "Found the result."]);
+  });
   it("retains structured social results through the saved transcript", () => {
     const data = { items: [{ platform: "instagram", kind: "reel", title: "Example", url: "https://instagram.com/reel/123", likes: 42 }] };
     const turns = buildTranscript([{ id: "result", type: "agent.tool_result", part: { type: "tool_result", call_id: "apify1", tool_name: "apify_results", status: "ok", result: JSON.stringify({ type: "ceyo.widget", widget: "social_results", data }) } }], "en", false);

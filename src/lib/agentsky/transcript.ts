@@ -37,6 +37,7 @@ export type AgentTurn = {
   id: string;
   steps: Step[];
   text: string;
+  messages?: string[];
   cards: Card[];
   running: boolean;
   stopped: boolean;
@@ -173,6 +174,7 @@ export function describeTool(name: string, args: any, lang: Lang): { kind: StepK
   const t = L[lang];
   const n = base(name);
   const a = normalizeArgs(args);
+  if (n.startsWith("apify_")) return { kind: n.includes("search") ? "search" : "read", label: lang === "ar" ? "براجع المحتوى المتاح" : "Checking available content" };
   if (n.includes("generate_image") || n === "image_generate") return { kind: "image", label: t.image };
   if (n.includes("generate_video")) return { kind: "video", label: t.video };
   if (n.includes("ask_user")) return { kind: "ask", label: t.ask };
@@ -334,7 +336,10 @@ export function buildTranscript(events: RawEvent[], lang: Lang, running: boolean
   const textByStream = new Map<string, string>();
 
   const flushText = () => {
-    if (cur) cur.text = cleanText(textStreams.map((s) => textByStream.get(s) || "").join("\n\n"));
+    if (cur) {
+      cur.messages = textStreams.map((s) => cleanText(textByStream.get(s) || "")).filter(Boolean);
+      cur.text = cleanText(cur.messages.join("\n\n"));
+    }
   };
   const agent = (): AgentTurn => {
     if (!cur) {

@@ -1,3 +1,8 @@
+## Friendly chat and readable links — 2026-11-15
+- [x] Replace mandatory per-request plans and internal-cost narration with natural, truthful progress.
+- [x] Separate agent progress messages and display readable links with site icons in both sides of chat.
+- [x] Verify tests and signed-in desktop/mobile presentation; research social-account architecture without creating accounts.
+
 ## Apify catalogue and social cards — 2026-11-15
 - [x] Add dynamic Store search, Actor details/input schema, bounded asynchronous runs, status, dataset reads and cancellation using the existing private provider key.
 - [x] Render platform-specific account/post/reel/video result cards without raw tool JSON.

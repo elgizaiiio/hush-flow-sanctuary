@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FormattedAnswer } from "@/components/chat/FormattedAnswer";
+import { ChatLink } from "@/components/chat/ChatLink";
 import {
   ArrowUp,
   ChevronDown,
@@ -79,7 +80,7 @@ function fmtTime(at?: string) {
 }
 
 function Highlight({ text, q }: { text: string; q: string }): ReactNode {
-  if (!q) return text;
+  if (!q) return text.split(/(https?:\/\/[^\s<>]+)/g).map((part, index) => /^https?:\/\//.test(part) ? <ChatLink key={index} href={part}>{part}</ChatLink> : part);
   const parts = text.split(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "ig"));
   return parts.map((p, i) => (p.toLowerCase() === q.toLowerCase() ? <mark key={i}>{p}</mark> : p));
 }
@@ -406,7 +407,7 @@ export function HubChat({
         out.push({ key: turn.id, turnId: turn.id, role: "user", text: turn.text, at: turn.at, turn, partIndex: 0, lastPart: true, turnIndex });
         return;
       }
-      const parsed = group ? groupTranscript(turn.text || "") : [{ speaker: "", text: turn.text || "" }];
+      const parsed = group ? groupTranscript(turn.text || "") : (turn.messages?.length ? turn.messages : [turn.text || ""]).map((text: string) => ({ speaker: "", text }));
       const parts = parsed.length ? parsed : [{ speaker: "", text: "" }];
       // The bot can react to the user's message by starting its reply with [[react:EMOJI]].
       const lastUser = [...out].reverse().find((o) => o.role === "user");
@@ -749,8 +750,8 @@ const STEP_WORDS: Record<string, [string, string]> = {
   calendar: ["Checking your calendar", "بشوف الكالندر"],
   map: ["Looking at the map", "بشوف الخريطة"],
   data: ["Crunching the numbers", "بحسب الأرقام"],
-  task: ["Setting up the task", "بجهّز المهمة"],
-  plan: ["Planning the steps", "برتب الخطوات"],
+  task: ["Organizing your request", "برتب طلبك"],
+  plan: ["Organizing the project", "برتب المشروع"],
   ask: ["Preparing a question", "بجهّز سؤال ليك"],
 };
 
@@ -760,12 +761,11 @@ function workingLabel(steps: { kind: string; label: string; status: string }[], 
   if (active) {
     const w = STEP_WORDS[active.kind];
     if (w) return ar ? w[1] : w[0];
-    if (active.label && !ar) return active.label;
-    return ar ? "بنفّذ الخطوة" : "Working on it";
+    return ar ? "براجع المطلوب" : "Checking your request";
   }
   if (state === "talking") return ar ? "بكتب الرد" : "Writing the reply";
-  const done = steps.filter((st) => st.status === "done").length;
-  if (done) return ar ? `خلصت ${done} ${done === 1 ? "خطوة" : "خطوات"}، بكمل` : `${done} step${done === 1 ? "" : "s"} done, continuing`;
-  const pool = ar ? ["بفكر في طلبك", "بفهم المطلوب"] : ["Thinking it through", "Understanding your request"];
-  return pool[Math.floor(tick / 3) % pool.length];
+  void tick;
+  const recent = [...steps].reverse().find((st) => st.status === "done" && st.kind !== "thought");
+  if (recent) return ar ? "براجع اللي لقيته" : "Reviewing what I found";
+  return ar ? "بفكر في طلبك" : "Thinking about your request";
 }
