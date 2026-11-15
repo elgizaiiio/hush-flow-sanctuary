@@ -7,6 +7,8 @@ export function normalizeChatHistory(rows: { role: string; content: string; meta
   });
   const lastUser = list.map((r) => r.role).lastIndexOf("user");
   return list.map((row, i) => {
+    const actionResult = (row.metadata as { action_result?: unknown } | null)?.action_result;
+    if (row.role === "assistant" && typeof actionResult === "string") return { role: row.role, content: `${row.content}\nResult: ${actionResult}` };
     if (row.role === "assistant") return { role: row.role, content: row.content.replace(/\[\[speaker:[^\]]*\]\]/g, "").trim() };
     const images = (row.metadata as { images?: unknown } | null)?.images;
     const pics = Array.isArray(images) ? images.filter((u): u is string => typeof u === "string" && /^(data:image\/|https:)/.test(u)).slice(0, 4) : [];
